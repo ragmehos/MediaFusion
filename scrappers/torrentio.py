@@ -106,7 +106,7 @@ async def store_and_parse_stream_data(
         if torrent_stream.filename is None:
             info_hashes.append(stream["infoHash"])
 
-    background_tasks.add_task(update_torrent_streams_metadata, info_hashes)
+    #background_tasks.add_task(update_torrent_streams_metadata, info_hashes)
 
     return streams
 

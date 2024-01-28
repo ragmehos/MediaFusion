@@ -101,7 +101,7 @@ async def store_and_parse_stream_data(
                 info_hashes.append(infohash)
 
     # TODO ADD ME LATER
-    background_tasks.add_task(update_torrent_streams_metadata, info_hashes)
+    #background_tasks.add_task(update_torrent_streams_metadata, info_hashes)
 
     return streams
 

@@ -125,6 +125,7 @@ async def parse_stream_data(
         seeders = f"👤 {stream_data.seeders}" if stream_data.seeders else None
 
         description_parts = [
+            stream_data.torrent_name,
             quality_detail,
             convert_bytes_to_readable(
                 episode_data.size if episode_data else stream_data.size
