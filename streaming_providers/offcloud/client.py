@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from streaming_providers.debrid_client import DebridClient
@@ -79,7 +80,7 @@ class OffCloud(DebridClient):
             if filename is None:
                 if is_video_file(link):
                     return link
-            if filename is not None and filename in link:
+            if filename is not None and is_video_file(link) and re.search(filename, link):
                 return link
         raise ProviderException(
             "No matching file available for this torrent", "api_error.mp4"

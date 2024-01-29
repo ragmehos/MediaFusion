@@ -1,5 +1,3 @@
-import os
-import re
 from datetime import datetime
 
 import PTN
@@ -22,34 +20,43 @@ async def fetch_stream_data(url: str, params: dict, headers: dict) -> dict:
 
 
 async def scrap_streams_from_prowlarr(
-        video_id: str, catalog_type: str, background_tasks: BackgroundTasks
+        video_id: str, catalog_type: str, background_tasks: BackgroundTasks = None, season: int = None, episode: int = None
 ) -> list[TorrentStreams]:
     """
     Get streams by IMDb ID from prowlarr.
     """
     url = f"{settings.prowlarr_url}/api/v1/search"
-    headers = {
-        'accept': 'application/json',
-        'X-Api-Key': settings.prowlarr_api_key,
-    }
+    stream_data = []
+    imdb_title = get_imdb_title(video_id.removeprefix('tt'))
 
-    params = {
-        'query': get_imdb_title(video_id.removeprefix("tt")),
-        'categories': [
-            '2000', # Movies
-            '5000', # TV
-            '8000', # Other
-        ],
-        'limit': '20',
-        'offset': '0',
-    }
-    try:
-        stream_data = await fetch_stream_data(url, params, headers)
-        return await store_and_parse_stream_data(
-            video_id, stream_data, background_tasks
-        )
-    except (httpx.HTTPError, httpx.TimeoutException):
-        return []  # Return empty list in case of HTTP errors or timeouts
+    prefixes = ["{" + f"ImdbId:{video_id}" + "} "]
+    if catalog_type == "tv":
+        prefixes = ["{" + f"Season:{season}" + "} ",
+                    "{" + f"Season:{season}" + "} {" + f"Episode:{episode}" + "} "]
+    for prefix in prefixes:
+        headers = {
+            'accept': 'application/json',
+            'X-Api-Key': settings.prowlarr_api_key,
+        }
+        params = {
+            'query': f"{prefix}{imdb_title}",
+            'categories': [
+                '2000', # Movies
+                '5000', # TV
+                '8000', # Other
+            ],
+            'type': "tvsearch" if catalog_type == "tv" else "moviesearch",
+            'limit': '20',
+            'offset': '0',
+        }
+        try:
+            stream_data.extend(await fetch_stream_data(url, params, headers))
+        except (httpx.HTTPError, httpx.TimeoutException):
+            return []  # Return empty list in case of HTTP errors or timeouts
+
+    return await store_and_parse_stream_data(
+        video_id, stream_data, background_tasks
+    )
 
 
 async def store_and_parse_stream_data(
@@ -66,7 +73,7 @@ async def store_and_parse_stream_data(
                 torrent_stream.seeders = stream["seeders"]
                 torrent_stream.updated_at = datetime.now()
                 # TODO ADD ME LATER
-                await torrent_stream.save()
+                #await torrent_stream.save()
             else:
                 title = stream["title"]
                 metadata = PTN.parse(title)
@@ -94,7 +101,7 @@ async def store_and_parse_stream_data(
                     meta_id=video_id,
                 )
                 # TODO ADD ME LATER
-                await torrent_stream.save()
+                #await torrent_stream.save()
 
             streams.append(torrent_stream)
             if torrent_stream.filename is None:
@@ -126,4 +133,4 @@ async def update_torrent_streams_metadata(info_hashes: list[str]):
             torrent_stream.resolution = stream_metadata.get("resolution")
             torrent_stream.quality = stream_metadata.get("quality")
             torrent_stream.codec = stream_metadata.get("codec")
-            await torrent_stream.save()
+            #await torrent_stream.save()

@@ -22,6 +22,7 @@ filetype==1.2.0
 flatbencode==0.2.1
 greenlet==2.0.2
 h11==0.14.0
+hiredis==2.3.2
 httpcore==1.0.2
 httptools==0.6.1
 httpx==0.26.0
@@ -51,6 +52,7 @@ python-dotenv==1.0.1
 pytz==2023.3.post1
 PyYAML==6.0.1
 rapidfuzz==3.6.1
+redis==5.0.1
 requests==2.31.0
 requests-toolbelt==1.0.0
 seedrcc==1.0.1

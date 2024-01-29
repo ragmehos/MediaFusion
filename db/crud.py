@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 from uuid import uuid4
@@ -159,13 +160,20 @@ async def get_movie_streams(
 async def get_series_streams(
     user_data, secret_str: str, video_id: str, season: int, episode: int
 ) -> list[Stream]:
-    series_data = await get_series_data_by_id(video_id, True)
-    if not series_data:
-        return []
+    #series_data = await get_series_data_by_id(video_id, True)
+    #if not series_data:
+    #    return []
 
-    matched_episode_streams = [
-        stream for stream in series_data.streams if stream.get_episode(season, episode)
-    ]
+    streams = []
+    if video_id.startswith("tt"):
+        if "prowlarr_streams" in user_data.selected_catalogs:
+            streams.extend(
+                await scrap_streams_from_prowlarr(
+                    video_id, "tv", None, season, episode)
+            )
+
+    matched_episode_streams = [stream for stream in streams
+                               if re.search(f"(S|Season)(.?){season}", stream.torrent_name)]
 
     return await parse_stream_data(
         matched_episode_streams, user_data, secret_str, season, episode

@@ -78,7 +78,7 @@ async def store_and_parse_stream_data(
             # Update existing stream
             torrent_stream.seeders = parsed_data["seeders"]
             torrent_stream.updated_at = datetime.now()
-            await torrent_stream.save()
+            #await torrent_stream.save()
         else:
             # Create new stream
             torrent_stream = TorrentStreams(
@@ -100,7 +100,7 @@ async def store_and_parse_stream_data(
                 seeders=parsed_data["seeders"],
                 meta_id=video_id,
             )
-            await torrent_stream.save()
+            #await torrent_stream.save()
 
         streams.append(torrent_stream)
         if torrent_stream.filename is None:
@@ -167,4 +167,4 @@ async def update_torrent_streams_metadata(info_hashes: list[str]):
             torrent_stream.filename = largest_file["filename"]
             torrent_stream.file_index = largest_file["index"]
             torrent_stream.updated_at = datetime.now()
-            await torrent_stream.save()
+            #await torrent_stream.save()

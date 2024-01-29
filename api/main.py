@@ -424,16 +424,15 @@ async def streaming_provider_endpoint(
     if not user_data.streaming_provider:
         raise HTTPException(status_code=400, detail="No streaming provider set.")
 
-    stream = await crud.get_stream_by_info_hash(info_hash)
-    if not stream:
-        raise HTTPException(status_code=400, detail="Stream not found.")
+    #stream = await crud.get_stream_by_info_hash(info_hash)
+    #if not stream:
+    #    raise HTTPException(status_code=400, detail="Stream not found.")
 
     magnet_link = await torrent.convert_info_hash_to_magnet(
-        info_hash, stream.announce_list
-    )
+        info_hash, list(torrent.TRACKERS))
 
-    episode_data = stream.get_episode(season, episode)
-    filename = episode_data.filename if episode_data else stream.filename
+    episode_data = None #stream.get_episode(season, episode)
+    filename = f"(S|Season)(.?){season}(.?)(E|Episode)(.?){episode}" if season and episode else ""
 
     try:
         if user_data.streaming_provider.service == "seedr":
