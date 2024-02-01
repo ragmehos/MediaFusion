@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     prowlarr_url: str = "http://prowlarr-service:9696"
     prowlarr_api_key: str | None = None
     prowlarr_live_title_search: bool = False
-    prowlarr_background_title_search: bool = True
+    prowlarr_background_title_search: bool = False
     prowlarr_search_query_timeout: int = 120
     prowlarr_search_interval_hour: int = 24
     prowlarr_immediate_max_process: int = 10
@@ -52,8 +52,8 @@ class Settings(BaseSettings):
     )
     local_config_path: str = "resources/json/scraper_config.json"
 
-    # Feature Toggles
-    is_scrap_from_torrentio: bool = False
+    # Feature toggles
+    is_scrap_from_torrentio: bool = True
     is_scrap_from_zilean: bool = False
     enable_rate_limit: bool = False
     validate_m3u8_urls_liveness: bool = True
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     worker_max_tasks_per_child: int = 20
 
     # Global Scheduler Settings
-    disable_all_scheduler: bool = False
+    disable_all_scheduler: bool = True
 
     # Individual Scheduler Settings
     tamilmv_scheduler_crontab: str = "0 */3 * * *"

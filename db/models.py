@@ -199,3 +199,7 @@ class MediaFusionEventsMetaData(MediaFusionMetaData):
     event_start_timestamp: Optional[int] = None
     logo: Optional[str] = None
     streams: list[TVStreams]
+
+
+class TorrentStreamsList(BaseModel):
+    streams: list[TorrentStreams]

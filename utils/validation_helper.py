@@ -1,10 +1,13 @@
 import asyncio
 import json
 import logging
+
+import PTT
 from urllib import parse
 from urllib.parse import urlparse
 
 import aiohttp
+#import dramatiq
 from aiohttp import ClientError
 
 from db import schemas
@@ -191,3 +194,7 @@ def validate_parent_guide_nudity(metadata, user_data: schemas.UserData) -> bool:
         return False
 
     return True
+
+
+def get_season_and_episode(filename):
+    return PTT.parse_title(filename).get("seasons", []), PTT.parse_title(filename).get("episodes", [])

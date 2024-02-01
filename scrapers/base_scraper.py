@@ -209,6 +209,8 @@ class BaseScraper(abc.ABC):
         Store the parsed streams in the database.
         :param streams: List of TorrentStreams objects
         """
+        '''
         from db.crud import store_new_torrent_streams
 
         await store_new_torrent_streams(streams)
+        '''

@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import PTT
@@ -7,7 +8,7 @@ from urllib.request import urlopen
 
 from streaming_providers.debrid_client import DebridClient
 from streaming_providers.exceptions import ProviderException
-from utils.validation_helper import is_video_file
+from utils.validation_helper import is_video_file, get_season_and_episode
 
 
 class OffCloud(DebridClient):
@@ -80,12 +81,12 @@ class OffCloud(DebridClient):
     def explore_folder_links(self, request_id):
         return self._make_request("GET", f"/cloud/explore/{request_id}")
 
-    def create_download_link(self, request_id, torrent_info, filename, episode):
+    def create_download_link(self, request_id, torrent_info, filename, season, episode):
         if torrent_info["isDirectory"] is False:
             return f"https://{torrent_info.get('server')}.offcloud.com/cloud/download/{request_id}/{torrent_info.get('fileName')}"
 
         links = self.explore_folder_links(request_id)
-
+        '''
         exact_match = next((link for link in links if filename in link), None)
         if exact_match:
             return exact_match
@@ -111,6 +112,27 @@ class OffCloud(DebridClient):
             raise ProviderException(
                 "No matching file available for this torrent", "no_matching_file.mp4"
             )
+        '''
+        possible_links = []
+        for link in links:
+            if filename is None or filename == "":
+                if is_video_file(link):
+                    possible_links.append(link)
+            else:
+                parsed_season, parsed_episode = get_season_and_episode(link.split("/")[-1])
+                if (is_video_file(link) and
+                        #re.search(filename, link, re.IGNORECASE) and
+                    season in parsed_season and
+                    episode in parsed_episode):
+                    possible_links.append(link)
+        if len(possible_links) > 1:
+            selected = max(possible_links, key=lambda x: int(urlopen(x).info()['Content-Length']))
+            return selected
+        elif len(possible_links) == 1:
+            return possible_links[0]
+        raise ProviderException(
+            "No matching file available for this torrent", "no_matching_file.mp4"
+        )
 
     def delete_torrent(self, request_id):
         return self._make_request("GET", f"/cloud/remove/{request_id}", delete=True)

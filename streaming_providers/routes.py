@@ -19,6 +19,7 @@ from streaming_providers.exceptions import ProviderException
 from streaming_providers.premiumize.api import router as premiumize_router
 from streaming_providers.realdebrid.api import router as realdebrid_router
 from streaming_providers.seedr.api import router as seedr_router
+from streaming_providers.torbox.api import router as torbox_router
 from utils import crypto, torrent, wrappers, const
 from utils.lock import acquire_redis_lock, release_redis_lock
 from utils.network import get_user_public_ip, get_user_data, encode_mediaflow_proxy_url
@@ -90,10 +91,10 @@ async def get_or_create_video_url(
     Retrieves or generates the video URL based on stream data and user info.
     """
     magnet_link = await torrent.convert_info_hash_to_magnet(
-        info_hash, stream.announce_list
+        info_hash, list(torrent.TRACKERS)
     )
-    episode_data = stream.get_episode(season, episode)
-    filename = episode_data.filename if episode_data else stream.filename
+    episode_data = None #stream.get_episode(season, episode)
+    filename = f"(S|Season)(.?){season}(.?)(E|Episode|ep)(.?){episode}\\D" if season and episode else "" # episode_data.filename if episode_data else stream.filename
 
     get_video_url = mapper.GET_VIDEO_URL_FUNCTIONS.get(
         user_data.streaming_provider.service
@@ -103,13 +104,14 @@ async def get_or_create_video_url(
         magnet_link=magnet_link,
         user_data=user_data,
         filename=filename,
-        file_index=stream.file_index,
+        #file_index=stream.file_index,
         user_ip=user_ip,
+        season=season,
         episode=episode,
         max_retries=1,
         retry_interval=0,
-        stream=stream,
-        torrent_name=stream.torrent_name,
+        #stream=stream,
+        #torrent_name=stream.torrent_name,
     )
 
     if asyncio.iscoroutinefunction(get_video_url):
@@ -214,7 +216,7 @@ async def streaming_provider_endpoint(
         return cached_stream_url
 
     # Fetch stream from DB
-    stream = await fetch_stream_or_404(info_hash)
+    stream = None #await fetch_stream_or_404(info_hash)
 
     # Acquire Redis lock to prevent duplicate download tasks
     acquired, lock = await acquire_redis_lock(
@@ -242,6 +244,22 @@ async def streaming_provider_endpoint(
     return RedirectResponse(
         url=video_url, headers=response.headers, status_code=redirect_status_code
     )
+
+
+    episode_data = None # stream.get_episode(season, episode)
+    filename = f"(S|Season)(.?){season}(.?)(E|Episode|ep)(.?){episode}\\D" if season and episode else "" # episode_data.filename if episode_data else stream.filename
+
+    '''
+    # Create a Redis lock to prevent multiple requests from initiating a download task.
+    acquired, lock = await acquire_redis_lock(
+        request.app.state.redis,
+        f"{cached_stream_url_key}_locked",
+        timeout=60,
+        block=True,
+    )
+    if not acquired:
+        raise HTTPException(status_code=429, detail="Too many requests.")
+    '''
 
 
 @router.get("/{secret_str}/delete_all_watchlist", tags=["streaming_provider"])

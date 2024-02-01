@@ -255,6 +255,7 @@ async def get_cached_torrent_streams(
     season: Optional[int] = None,
     episode: Optional[int] = None,
 ) -> list[TorrentStreams]:
+    return []
     # Create a unique key for Redis
     # Try to get the data from the Redis cache
     cached_data = await REDIS_ASYNC_CLIENT.get(cache_key)

@@ -186,8 +186,10 @@ async def parse_stream_data(
     stream_list = []
     for stream_data in streams:
         episode_data = stream_data.get_episode(season, episode) if is_series else None
+        '''
         if is_series and not episode_data:
             continue
+        '''
 
         if episode_data:
             file_name = episode_data.filename
@@ -261,7 +263,7 @@ async def parse_stream_data(
 
         if has_streaming_provider:
             stream_details["url"] = base_proxy_url_template.format(stream_data.id) + (
-                f"&season={season}&episode={episode}" if episode_data else ""
+                f"&season={season}&episode={episode}" if (season or episode) else "" #if episode_data else ""
             )
             stream_details["behaviorHints"]["notWebReady"] = True
         else:

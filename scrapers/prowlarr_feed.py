@@ -142,6 +142,7 @@ async def search_and_create_metadata(metadata: dict, media_type: str):
     return await get_metadata_by_id(metadata["id"], media_type)
 
 
+'''
 @minimum_run_interval(hours=settings.prowlarr_feed_scrape_interval_hour)
 @dramatiq.actor(
     time_limit=60 * 60 * 1000,  # 60 minutes
@@ -150,6 +151,7 @@ async def search_and_create_metadata(metadata: dict, media_type: str):
     max_backoff=3600000,
     priority=50,
 )
+'''
 async def run_prowlarr_feed_scraper():
     logger.info("Running Prowlarr feed scraper")
     await scrape_prowlarr_feed()

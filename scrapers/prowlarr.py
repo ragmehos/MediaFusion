@@ -692,7 +692,7 @@ class ProwlarrScraper(BaseScraper):
             self.logger.error(f"Failed to fetch data from Prowlarr: {exception}")
         return should_retry
 
-
+'''
 @minimum_run_interval(hours=settings.prowlarr_search_interval_hour)
 @dramatiq.actor(
     time_limit=10 * 60 * 1000,  # 10 minutes
@@ -700,6 +700,7 @@ class ProwlarrScraper(BaseScraper):
     max_backoff=10 * 60 * 1000,  # 10 minutes
     priority=100,
 )
+'''
 async def background_movie_title_search(
     metadata_id: str,
 ):
@@ -725,7 +726,7 @@ async def background_movie_title_search(
         f"Background title search completed for {metadata.title} ({metadata.year})"
     )
 
-
+'''
 @minimum_run_interval(hours=settings.prowlarr_search_interval_hour)
 @dramatiq.actor(
     time_limit=10 * 60 * 1000,  # 10 minutes
@@ -733,6 +734,7 @@ async def background_movie_title_search(
     max_backoff=10 * 60 * 1000,  # 10 minutes
     priority=100,
 )
+'''
 async def background_series_title_search(
     metadata_id: str,
     season: str,
