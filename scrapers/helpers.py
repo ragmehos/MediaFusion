@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 
-import dramatiq
+#import dramatiq
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
@@ -31,7 +31,7 @@ def get_scraper_config(site_name: str, get_key: str) -> dict:
     return config.get(site_name, {}).get(get_key, {})
 
 
-@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
+#@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
 async def update_torrent_movie_streams_metadata(
     info_hashes: list[str], tracker: list[str] = None
 ):
@@ -57,7 +57,8 @@ async def update_torrent_movie_streams_metadata(
             logging.info(f"Updated {torrent_stream.id} metadata")
 
 
-@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
+
+#@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
 async def update_torrent_series_streams_metadata(
     info_hashes: list[str], tracker: list[str] = None
 ):

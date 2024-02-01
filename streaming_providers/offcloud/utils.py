@@ -11,6 +11,7 @@ def get_video_url_from_offcloud(
     filename: str,
     max_retries=5,
     retry_interval=5,
+    season: int = None,
     episode: int = None,
     **kwargs,
 ) -> str:
@@ -22,8 +23,9 @@ def get_video_url_from_offcloud(
         request_id = torrent_info.get("requestId")
         torrent_info = oc_client.get_torrent_info(request_id)
         if torrent_info["status"] == "downloaded":
+            login_to_oc(user_data)
             return oc_client.create_download_link(
-                request_id, torrent_info, filename, episode
+                request_id, torrent_info, filename, season, episode
             )
         if torrent_info["status"] == "error":
             raise ProviderException(
@@ -39,7 +41,8 @@ def get_video_url_from_offcloud(
     torrent_info = oc_client.wait_for_status(
         request_id, "downloaded", max_retries, retry_interval
     )
-    return oc_client.create_download_link(request_id, torrent_info, filename, episode)
+    login_to_oc(user_data)
+    return oc_client.create_download_link(request_id, torrent_info, filename, season, episode)
 
 
 def update_oc_cache_status(
@@ -81,3 +84,30 @@ def delete_all_torrents_from_oc(user_data: UserData, **kwargs):
     torrents = oc_client.get_user_torrent_list()
     for torrent in torrents:
         oc_client.delete_torrent(torrent.get("requestId"))
+
+
+def login_to_oc(user_data: UserData):
+    import os
+    if os.environ.get("OFFCLOUD_USER") is None:
+        return
+
+    import requests
+    from utils.network import encode_mediaflow_proxy_url
+
+    session = requests.Session()
+    if (
+            user_data.mediaflow_config
+            and user_data.mediaflow_config.proxy_debrid_streams
+    ):
+        url = encode_mediaflow_proxy_url(
+            user_data.mediaflow_config.proxy_url,
+            "/proxy/endpoint",
+            "https://offcloud.com/api/login",
+            query_params={"api_password": user_data.mediaflow_config.api_password},
+        )
+    else:
+        url = "https://offcloud.com/api/login"
+
+    session.post(url,
+                 data={'username': os.environ.get("OFFCLOUD_USER"),
+                       'password': os.environ.get("OFFCLOUD_PASSWORD")})

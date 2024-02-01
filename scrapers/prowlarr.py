@@ -10,7 +10,7 @@ from pymongo.errors import DuplicateKeyError
 from torf import Magnet, MagnetError
 
 from db.config import settings
-from db.models import TorrentStreams, Season, Episode
+from db.models import TorrentStreams, Season, Episode, TorrentStreamsList
 from scrapers import torrent_info
 from scrapers.helpers import (
     update_torrent_series_streams_metadata,
@@ -22,6 +22,7 @@ from utils.parser import is_contain_18_plus_keywords, calculate_max_similarity_r
 from utils.runtime_const import REDIS_ASYNC_CLIENT
 from utils.torrent import extract_torrent_metadata
 from utils.wrappers import minimum_run_interval
+from utils.lock import acquire_redis_lock, release_redis_lock
 
 
 async def get_streams_from_prowlarr(
@@ -34,20 +35,43 @@ async def get_streams_from_prowlarr(
     season: int = None,
     episode: int = None,
 ):
+
     cache_key = f"{catalog_type}_{video_id}_{year}_{season}_{episode}_prowlarr_streams"
     cached_data = await REDIS_ASYNC_CLIENT.get(cache_key)
+
     if cached_data:
-        return streams
+        logging.info(
+            f"Hit cache for prowlarr {cache_key}"
+        )
+        return TorrentStreamsList.model_validate_json(cached_data).streams
+
+    # OC and Torbox together will query twice, so lock, and hopefully the next query will hit the cache
+    acquired, lock = await acquire_redis_lock(
+        f"{cache_key}_lock",
+        timeout=120,
+        block=True,
+    )
+    if not acquired:
+        return []
 
     if catalog_type == "movie":
         if (
             settings.prowlarr_immediate_max_process_time > 0
             and settings.prowlarr_immediate_max_process > 0
         ):
-            new_streams = await fetch_stream_data_with_timeout(
+            print(datetime.now())
+            task1 = asyncio.create_task(fetch_stream_data_with_timeout(
                 scrap_movies_streams_from_prowlarr, video_id, title, aka_titles, year
-            )
-            streams.extend(new_streams)
+            ))
+            # Enable this when other regular indexers are enabled on prowlarr
+            #task2 = asyncio.create_task(
+            #    background_movie_title_search(video_id=video_id, title=title, aka_titles=aka_titles, year=year))
+            streams1 = await task1
+            #streams2 = await task2
+            streams.extend(streams1)
+            #streams.extend(streams2)
+            print(datetime.now())
+            '''
             max_process = settings.prowlarr_immediate_max_process - len(new_streams)
             if settings.prowlarr_live_title_search and max_process > 0:
                 new_streams = await fetch_stream_data_with_timeout(
@@ -63,12 +87,16 @@ async def get_streams_from_prowlarr(
             background_movie_title_search.send(
                 video_id=video_id, title=title, aka_titles=aka_titles, year=year
             )
+        '''
     elif catalog_type == "series":
         if (
             settings.prowlarr_immediate_max_process_time > 0
             and settings.prowlarr_immediate_max_process > 0
         ):
-            new_streams = await fetch_stream_data_with_timeout(
+            print(datetime.now())
+            # Enable this when other regular indexers are enabled on prowlarr
+            '''
+            task1 = asyncio.create_task(fetch_stream_data_with_timeout(
                 scrap_series_streams_from_prowlarr,
                 video_id,
                 title,
@@ -76,8 +104,18 @@ async def get_streams_from_prowlarr(
                 year,
                 season,
                 episode,
-            )
-            streams.extend(new_streams)
+            ))
+            task2 = asyncio.create_task(background_series_title_search(video_id, title, aka_titles, year, season, episode))
+            '''
+            task3 = asyncio.create_task(background_series_imdb_search(video_id, title, aka_titles, year, season, episode))
+            #streams1 = await task1
+            #streams2 = await task2
+            streams3 = await task3
+            #streams.extend(streams1)
+            #streams.extend(streams2)
+            streams.extend(streams3)
+            print(datetime.now())
+            '''
             max_process = settings.prowlarr_immediate_max_process - len(new_streams)
             if settings.prowlarr_live_title_search and max_process > 0:
                 new_streams = await fetch_stream_data_with_timeout(
@@ -100,12 +138,16 @@ async def get_streams_from_prowlarr(
                 season=season,
                 episode=episode,
             )
-    await REDIS_ASYNC_CLIENT.set(
-        cache_key,
-        "True",
-        ex=int(timedelta(hours=settings.prowlarr_search_interval_hour).total_seconds()),
-    )
-
+        background_series_title_search.send(video_id, title, year, season, episode)
+        '''
+    # Cache only if list is non empty
+    if streams:
+        await REDIS_ASYNC_CLIENT.set(
+            cache_key,
+            TorrentStreamsList(streams=streams).model_dump_json(exclude_none=True),
+            ex=int(timedelta(hours=settings.prowlarr_search_interval_hour).total_seconds()),
+        )
+    await release_redis_lock(lock)
     return streams
 
 
@@ -128,7 +170,7 @@ async def fetch_stream_data_with_timeout(func, *args):
 
 
 @asynccontextmanager
-async def get_prowlarr_client(timeout: int = 10):
+async def get_prowlarr_client(timeout: int = 100):
     headers = {
         "accept": "application/json",
         "X-Api-Key": settings.prowlarr_api_key,
@@ -164,7 +206,7 @@ async def scrap_movies_streams_from_prowlarr(
     url = f"{settings.prowlarr_url}/api/v1/search"
     params_imdb = {
         "query": f"{{ImdbId:{video_id}}}",
-        "categories": [2000],  # Movies
+        "categories": [2000], # For now searching only stremio addons, when removed, put all of this back [2000, 5000, 8000],  # Movies
         "type": "movie",
     }
 
@@ -182,7 +224,7 @@ async def scrap_movies_streams_from_prowlarr(
     filtered_streams = imdb_search[: settings.prowlarr_immediate_max_process]
     logging.info(f"Processing {len(filtered_streams)} streams for {title} ({year})")
     return await parse_and_store_movie_stream_data(
-        video_id, title, aka_titles, year, filtered_streams
+        video_id, title, aka_titles, year, imdb_search
     )
 
 
@@ -199,9 +241,17 @@ async def scrape_movie_title_streams_from_prowlarr(
     """
     url = f"{settings.prowlarr_url}/api/v1/search"
     params_title = {
-        "query": f"{title} ({year})",
-        "categories": [2000, 8000],  # Movies & Others (BitSearch only works with 8000)
+        "query": title,
+        "categories": [2000, 5000, 8000],  # Movies
         "type": "search",
+        "indexerIds": await get_indexer_ids([
+            "The Pirate Bay",
+            "BitSearch",
+            "RuTor",
+            "Solid Torrents",
+            "Torrentz2nz",
+            "YTS",
+            "EZTV"])  # [1, 2, 3, 14, 15, 16, 19],
     }
 
     try:
@@ -230,7 +280,7 @@ async def scrape_movie_title_streams_from_prowlarr(
         is_background_search=is_background_search,
     )
 
-
+'''
 @minimum_run_interval(hours=settings.prowlarr_search_interval_hour)
 @dramatiq.actor(
     time_limit=60 * 60 * 1000,  # 60 minutes
@@ -239,13 +289,14 @@ async def scrape_movie_title_streams_from_prowlarr(
     retry_when=should_retry_prowlarr_scrap,
     priority=100,
 )
+'''
 async def background_movie_title_search(
     video_id: str, title: str, aka_titles: list[str], year: int
 ):
-    await scrape_movie_title_streams_from_prowlarr(
+    return await scrape_movie_title_streams_from_prowlarr(
         video_id, title, aka_titles, year, is_background_search=True
     )
-    logging.info(f"Background title search completed for {title} ({year})")
+    #logging.info(f"Background title search completed for {title} ({year})")
 
 
 async def scrap_series_streams_from_prowlarr(
@@ -261,9 +312,17 @@ async def scrap_series_streams_from_prowlarr(
     """
     url = f"{settings.prowlarr_url}/api/v1/search"
     params_imdb = {
-        "query": f"{{ImdbId:{video_id}}}{{Season:{season}}}{{Episode:{episode}}}",
-        "categories": [5000],  # TV
+        "query" : f"{{Season:{season}}}{{Episode:{episode}}} {title}",
+        "categories": [2000, 5000, 8000],  # TV
         "type": "tvsearch",
+        "indexerIds": await get_indexer_ids([
+            "The Pirate Bay",
+            "BitSearch",
+            "RuTor",
+            "Solid Torrents",
+            "Torrentz2nz",
+            "YTS",
+            "EZTV"])  # [1, 2, 3, 14, 15, 16, 19],
     }
 
     try:
@@ -285,7 +344,7 @@ async def scrap_series_streams_from_prowlarr(
     )
 
     return await parse_and_store_series_stream_data(
-        video_id, title, aka_titles, year, season, filtered_streams
+        video_id, title, aka_titles, year, season, episode, imdb_search_result
     )
 
 
@@ -304,9 +363,17 @@ async def scrape_series_title_streams_from_prowlarr(
     """
     url = f"{settings.prowlarr_url}/api/v1/search"
     params_title = {
-        "query": title,
-        "categories": [5000, 8000],  # TV & Others (BitSearch only works with 8000)
-        "type": "search",
+        "query": f"{{Season:{season}}} {title}",
+        "categories": [2000, 5000, 8000],  # TV
+        "type": "tvsearch",
+        "indexerIds": await get_indexer_ids([
+            "The Pirate Bay",
+            "BitSearch",
+            "RuTor",
+            "Solid Torrents",
+            "Torrentz2nz",
+            "YTS",
+            "EZTV"])  # [1, 2, 3, 14, 15, 16, 19],
     }
 
     try:
@@ -325,10 +392,11 @@ async def scrape_series_title_streams_from_prowlarr(
     stream_results = title_search[:max_process] if max_process else title_search
     logging.info(f"Processing {len(stream_results)} streams for {title} ({year})")
     return await parse_and_store_series_stream_data(
-        video_id, title, aka_titles, year, season, stream_results, is_background_search
+        video_id, title, aka_titles, year, season, episode, stream_results, is_background_search
     )
 
 
+'''
 @minimum_run_interval(hours=settings.prowlarr_search_interval_hour)
 @dramatiq.actor(
     time_limit=60 * 60 * 1000,  # 60 minutes
@@ -337,6 +405,7 @@ async def scrape_series_title_streams_from_prowlarr(
     retry_when=should_retry_prowlarr_scrap,
     priority=100,
 )
+'''
 async def background_series_title_search(
     video_id: str,
     title: str,
@@ -345,10 +414,57 @@ async def background_series_title_search(
     season: int,
     episode: int,
 ):
-    await scrape_series_title_streams_from_prowlarr(
+    return await scrape_series_title_streams_from_prowlarr(
         video_id, title, aka_titles, year, season, episode, is_background_search=True
     )
-    logging.info(f"Background title search completed for {title} S{season}E{episode}")
+    #logging.info(f"Background title search completed for {title} S{season}E{episode}")
+
+
+async def background_series_imdb_search(
+    video_id: str,
+    title: str,
+    aka_titles: list[str],
+    year: int,
+    season: int,
+    episode: int,
+    max_process: int = None,
+):
+    """
+    Perform a series stream search by imdb id, season, and episode from Prowlarr, processing immediately.
+    """
+    url = f"{settings.prowlarr_url}/api/v1/search"
+    params_title = {
+        "query" : f"{{ImdbId:{video_id}}}{{Season:{season}}}{{Episode:{episode}}}",
+        "categories": [5000],  # TV
+        "type": "tvsearch",
+        "indexerIds": await get_indexer_ids([
+            "Torrentio",
+            "MediaFusion - ElfHosted",
+            "Zilean",
+            "Torbox Torrents",
+            "Torbox Stremio",
+            "Comet - RD - no indexers",
+            "Comet - TB - no indexers"]) #[23, 25, 29, 30, 31, 32],
+    }
+
+    try:
+        title_search = await fetch_stream_data(
+            url, params_title, timeout=settings.prowlarr_search_query_timeout * 3
+        )
+    except Exception as e:
+        logging.warning(
+            f"Failed to fetch API data from Prowlarr for {title} ({season}) ({episode}): {e}"
+        )
+        return []
+
+    logging.info(
+        f"Found {len(title_search)} streams for {title} ({season}) ({episode}) by title"
+    )
+    stream_results = title_search[:max_process] if max_process else title_search
+    logging.info(f"Processing {len(stream_results)} streams for {title} ({year})")
+    return await parse_and_store_series_stream_data(
+        video_id, title, aka_titles, year, season, episode, stream_results
+    )
 
 
 async def get_torrent_data_from_prowlarr(
@@ -389,7 +505,7 @@ async def update_torrent_stream(
     torrent_stream.catalog.extend(
         [catalog for catalog in catalogs if catalog not in torrent_stream.catalog]
     )
-    await torrent_stream.save()
+    #await torrent_stream.save()
     logging.info(f"Updated movies stream {info_hash} for {video_id}")
 
 
@@ -405,6 +521,7 @@ async def prowlarr_data_parser(
         )
         return {}, False
 
+    '''
     if not validate_category_with_title(meta_data):
         logging.warning(
             f"Skipping '{meta_data.get('title')}' due to invalid video by category."
@@ -439,12 +556,13 @@ async def prowlarr_data_parser(
                 )
 
             download_url = meta_data.get("magnetUrl") or meta_data.get("downloadUrl")
-
+    '''
     catalogs = [
         "prowlarr_streams",
         f"{meta_data.get('indexer').lower()}_{catalog_type}",
         f"prowlarr_{catalog_type}",
     ]
+    '''
     info_hash = meta_data.get("infoHash", "").lower()
     info_hash_db_check = False
 
@@ -466,39 +584,44 @@ async def prowlarr_data_parser(
             download_url, meta_data.get("indexer")
         )
     except Exception as e:
-        if meta_data.get("magnetUrl") and meta_data.get("magnetUrl").startswith(
-            "magnet:"
-        ):
-            try:
-                magnet = Magnet.from_string(meta_data.get("magnetUrl"))
-            except MagnetError:
-                logging.error(
-                    f"Error parsing {meta_data.get('indexer')} magnet link: {meta_data.get('magnetUrl')}",
-                )
-                return {}, False
-            torrent_data = {
-                "info_hash": magnet.infohash,
-                "announce_list": magnet.tr,
-            }
-            is_torrent_downloaded = False
-        elif meta_data.get("infoHash"):
-            torrent_data = {
-                "info_hash": meta_data.get("infoHash"),
-                "announce_list": [],
-            }
-            is_torrent_downloaded = False
-        else:
-            if isinstance(e, (httpx.HTTPError, ValueError)):
-                return {}, False
+    '''
+    if meta_data.get("magnetUrl") and meta_data.get("magnetUrl").startswith(
+        "magnet:"
+    ):
+        try:
+            magnet = Magnet.from_string(meta_data.get("magnetUrl"))
+        except MagnetError:
             logging.error(
-                f"Error getting torrent data: {e} {e.__class__.__name__}", exc_info=True
+                f"Error parsing {meta_data.get('indexer')} magnet link: {meta_data.get('magnetUrl')}",
             )
             return {}, False
+        torrent_data = {
+            "info_hash": magnet.infohash,
+            "announce_list": magnet.tr,
+        }
+        is_torrent_downloaded = False
+    elif meta_data.get("infoHash"):
+        torrent_data = {
+            "info_hash": meta_data.get("infoHash"),
+            "announce_list": [],
+        }
+        is_torrent_downloaded = False
+    else:
+        '''
+        if isinstance(e, (httpx.HTTPError, ValueError)):
+            return {}, False
+        '''
+        logging.error(
+            f"Error getting torrent data" #: {e} {e.__class__.__name__}", exc_info=True
+        )
+
+        return {}, False
 
     info_hash = torrent_data.get("info_hash", "").lower()
     if not info_hash:
         return {}, False
 
+    '''
     if info_hash_db_check is False:
         if stream := await get_stream_by_info_hash(info_hash):
             await update_torrent_stream(
@@ -510,6 +633,7 @@ async def prowlarr_data_parser(
                 catalogs,
             )
             return {}, False
+    '''
 
     if is_torrent_downloaded is False:
         torrent_data.update(
@@ -564,11 +688,13 @@ async def handle_movie_stream_store(info_hash, parsed_data, video_id):
         meta_id=video_id,
     )
 
+    '''
     try:
         await torrent_stream.create()
     except DuplicateKeyError:
         # If the stream already exists, skip the operation
         return None, False
+    '''
     logging.info(f"Created movies stream {info_hash} for {video_id}")
 
     # Determine if filename is None, indicating metadata update is needed
@@ -577,20 +703,20 @@ async def handle_movie_stream_store(info_hash, parsed_data, video_id):
     return torrent_stream, torrent_needed_update
 
 
-async def handle_series_stream_store(info_hash, parsed_data, video_id, season):
+async def handle_series_stream_store(info_hash, parsed_data, video_id, season, episode):
     """
     Handles the storage logic for a single series torrent stream, including updating
     or creating records for all episodes contained within the torrent. Skips torrents
     if no valid episode data is found.
     """
     # Fetch or create the torrent stream object
-    torrent_stream = await TorrentStreams.get(info_hash)
+    torrent_stream = None #await TorrentStreams.get(info_hash)
     if torrent_stream:
         return None, False  # Skip existing torrents
 
     # Check for unsupported torrents spanning multiple seasons and no season
-    if len(parsed_data.get("seasons", [])) != 1:
-        return None, False
+    #if len(parsed_data.get("seasons", [])) != 1:
+    #    return None, False
 
     # Prepare episode data based on detailed file data or basic episode numbers
     episode_data = []
@@ -609,8 +735,10 @@ async def handle_series_stream_store(info_hash, parsed_data, video_id, season):
         episode_data = [Episode(episode_number=ep) for ep in episodes]
 
     # Skip the torrent if no episode data is available
+    '''
     if not episode_data:
         return None, False  # Indicate that no operation was performed
+    '''
 
     season_number = parsed_data.get("seasons")[0]
 
@@ -634,6 +762,7 @@ async def handle_series_stream_store(info_hash, parsed_data, video_id, season):
         meta_id=video_id,
         season=Season(season_number=season_number, episodes=episode_data),
     )
+    '''
     logging.info(f"Created series stream {info_hash} for {video_id}")
 
     try:
@@ -641,6 +770,7 @@ async def handle_series_stream_store(info_hash, parsed_data, video_id, season):
     except DuplicateKeyError:
         # If the stream already exists, skip the operation
         return None, False
+    '''
 
     # Indicate whether a metadata update is needed (e.g., missing size information)
     torrent_needed_update = any(ep.size is None for ep in episode_data)
@@ -657,6 +787,7 @@ async def parse_and_store_stream(
     catalog_type: str,
     is_background_search: bool,
     season: int = None,
+    episode: int = None,
 ) -> tuple[TorrentStreams | None, bool]:
     parsed_data, _ = await prowlarr_data_parser(
         stream_data,
@@ -675,25 +806,25 @@ async def parse_and_store_stream(
     )
 
     if catalog_type == "movie":
-        if max_similarity_ratio < 85 or parsed_data.get("year") != year:
+        if max_similarity_ratio < 85 or parsed_data.get("year", 0) != year:
             logging.warning(
                 f"Skipping {info_hash} due to title mismatch: '{parsed_data.get('title')}' != '{title}' full title: '{parsed_data.get('torrent_name')}' "
                 f"ratio: {max_similarity_ratio} or year mismatch: '{parsed_data.get('year')}' != '{year}'"
             )
-            return torrent_stream, torrent_needed_update
+            #return torrent_stream, torrent_needed_update
         torrent_stream, torrent_needed_update = await handle_movie_stream_store(
             info_hash, parsed_data, video_id
         )
     elif catalog_type == "series":
-        if max_similarity_ratio < 85:
+        if max_similarity_ratio < 85 or parsed_data.get("year", 3000) < year:
             # TODO: Set the series end year condition with scraping end year as well.
             logging.warning(
                 f"Skipping {info_hash} due to title mismatch: '{parsed_data.get('title')}' != '{title}' ratio: {max_similarity_ratio} full title: '{parsed_data.get('torrent_name')}'"
             )
-            return torrent_stream, torrent_needed_update
+            #return torrent_stream, torrent_needed_update
 
         torrent_stream, torrent_needed_update = await handle_series_stream_store(
-            info_hash, parsed_data, video_id, season
+            info_hash, parsed_data, video_id, season, episode
         )
 
     return torrent_stream, torrent_needed_update
@@ -711,13 +842,13 @@ async def parse_and_store_movie_stream_data(
         return []
 
     circuit_breaker = CircuitBreaker(
-        failure_threshold=2, recovery_timeout=10, half_open_attempts=2
+        failure_threshold=20, recovery_timeout=0, half_open_attempts=2
     )
     parsed_results = await batch_process_with_circuit_breaker(
         parse_and_store_stream,
         stream_data,
         max(len(stream_data) // 5, 10),
-        3,
+        0,
         circuit_breaker,
         5,
         [httpx.HTTPError],
@@ -735,9 +866,10 @@ async def parse_and_store_movie_stream_data(
     ]
 
     # Continue to use background tasks for demagnetization
+    '''
     if info_hashes:
         update_torrent_movie_streams_metadata.send(info_hashes)
-
+    '''
     return streams
 
 
@@ -747,6 +879,7 @@ async def parse_and_store_series_stream_data(
     aka_titles: list[str],
     year: int,
     season: int,
+    episode: int,
     stream_data: list,
     is_background_search: bool = False,
 ) -> list[TorrentStreams]:
@@ -754,13 +887,13 @@ async def parse_and_store_series_stream_data(
         return []
 
     circuit_breaker = CircuitBreaker(
-        failure_threshold=2, recovery_timeout=10, half_open_attempts=2
+        failure_threshold=20, recovery_timeout=0, half_open_attempts=2
     )
     parsed_results = await batch_process_with_circuit_breaker(
         parse_and_store_stream,
         stream_data,
         max(len(stream_data) // 5, 10),
-        3,
+        0,
         circuit_breaker,
         5,
         [httpx.HTTPError],
@@ -771,6 +904,7 @@ async def parse_and_store_series_stream_data(
         catalog_type="series",
         is_background_search=is_background_search,
         season=season,
+        episode=episode
     )
 
     streams = [stream for stream, _ in parsed_results if stream is not None]
@@ -779,9 +913,10 @@ async def parse_and_store_series_stream_data(
     ]
 
     # Use background tasks for metadata updates
+    '''
     if info_hashes:
         update_torrent_series_streams_metadata.send(info_hashes)
-
+    '''
     return streams
 
 
@@ -825,3 +960,26 @@ def validate_category_with_title(meta_data: dict) -> bool:
             return False
 
     return True
+
+
+async def get_indexer_ids(
+    indexers: list,
+):
+    try:
+        indexers = [indexer.replace("_", " ").lower() for indexer in indexers]
+        get_indexers = await fetch_stream_data(f"{settings.prowlarr_url}/api/v1/indexer", {})
+
+        indexers_id = []
+        for indexer in get_indexers:
+            if (
+                indexer["name"].lower() in indexers
+                or indexer["definitionName"].lower() in indexers
+            ):
+                indexers_id.append(indexer["id"])
+        return indexers_id
+
+    except Exception as e:
+        logging.warning(
+            f"Exception while getting with {indexers}: {e}"
+        )
+        pass

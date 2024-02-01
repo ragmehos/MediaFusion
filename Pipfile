@@ -4,6 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+asgiref = "*"
+a2wsgi = "*"
+wsgidav = "*"
 fastapi = "*"
 uvicorn = { extras = ["standard"]  }
 pydantic = "*"
@@ -43,6 +46,7 @@ humanize = {git = "git+https://github.com/python-humanize/humanize.git"}
 scrapy-playwright = "*"
 cinemagoerng = {git = "git+https://github.com/mhdzumair/cinemagoerng.git"}
 tqdm = "*"
+qrcode = "*"
 parsett = {git = "git+https://github.com/mhdzumair/PTT"}
 
 [dev-packages]

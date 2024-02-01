@@ -26,13 +26,13 @@ class Settings(BaseSettings):
     # Common settings
     logging_level: str = "INFO"
     git_rev: str = "stable"
-    addon_name: str = "MediaFusion"
+    addon_name: str = "Hosted MediaFusion"
     logo_url: str = "https://raw.githubusercontent.com/mhdzumair/MediaFusion/main/resources/images/mediafusion_logo.png"
 
     # Feature toggles
-    is_scrap_from_torrentio: bool = False
+    is_scrap_from_torrentio: bool = True
     is_scrap_from_zilean: bool = False
-    enable_rate_limit: bool = True
+    enable_rate_limit: bool = False
     is_public_instance: bool = False
     validate_m3u8_urls_liveness: bool = True
     adult_content_regex_keywords: str = (
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     prowlarr_search_query_timeout: int = 120
 
     # Scheduler settings
-    disable_all_scheduler: bool = False
+    disable_all_scheduler: bool = True
     tamilmv_scheduler_crontab: str = "0 */3 * * *"
     disable_tamilmv_scheduler: bool = False
     tamil_blasters_scheduler_crontab: str = "0 */6 * * *"
@@ -85,9 +85,9 @@ class Settings(BaseSettings):
 
     # Time-related settings
     torrentio_search_interval_days: int = 3
-    prowlarr_search_interval_hour: int = 24
+    prowlarr_search_interval_hour: int = 6
     prowlarr_immediate_max_process: int = 10
-    prowlarr_immediate_max_process_time: int = 15
+    prowlarr_immediate_max_process_time: int = 120
     meta_cache_ttl: int = 1800  # 30 minutes in seconds
     worker_max_tasks_per_child: int = 20
 

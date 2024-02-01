@@ -1,0 +1,27 @@
+name: Prowlarr YAML plugins
+author: ragmehos
+sources:
+  - name: Prowlarr
+    version: 4
+    minVersion: '0.7'
+    about: >-
+      A self hosted indexer for searching media
+    dynamicWebsite: true      
+    tags:
+      - name: Movies
+      - name: TV
+    api:
+      clientSecret:
+        dynamic: true
+    jsonParser:
+      searchUrl: >-
+        /api/v1/search/?apikey={secret}&query=%7BImdbId%3A{query}%7D&type=movie&limit=100&offset=0
+      magnetLink:
+        query: guid
+      title:
+        query: title
+      size:
+        query: size
+      sl:
+        seeders: seeders
+        leechers: leechers

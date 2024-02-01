@@ -253,6 +253,7 @@ async def get_cached_torrent_streams(
     season: Optional[int] = None,
     episode: Optional[int] = None,
 ) -> list[TorrentStreams]:
+    return []
     # Create a unique key for Redis
     cache_key = f"torrent_streams:{video_id}:{season}:{episode}"
 

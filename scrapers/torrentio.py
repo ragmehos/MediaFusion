@@ -9,6 +9,7 @@ from pymongo.errors import DuplicateKeyError
 
 from db.config import settings
 from db.models import TorrentStreams, Season, Episode
+from db.schemas import TorrentStreamsList
 from scrapers.helpers import (
     update_torrent_series_streams_metadata,
     update_torrent_movie_streams_metadata,
@@ -35,7 +36,7 @@ async def get_streams_from_torrentio(
     cache_key = f"{catalog_type}_{video_id}_{season}_{episode}_torrentio_streams"
     cached_data = await REDIS_ASYNC_CLIENT.get(cache_key)
     if cached_data:
-        return streams
+        return TorrentStreamsList.model_validate_json(cached_data).streams
 
     if catalog_type == "movie":
         streams.extend(
@@ -53,8 +54,8 @@ async def get_streams_from_torrentio(
     # Cache the data for 24 hours
     await REDIS_ASYNC_CLIENT.set(
         cache_key,
-        "True",
-        ex=int(timedelta(days=settings.torrentio_search_interval_days).total_seconds()),
+        TorrentStreamsList(streams=streams).model_dump_json(exclude_none=True),
+        ex=int(timedelta(hours=settings.prowlarr_search_interval_hour).total_seconds()),
     )
 
     return streams
@@ -182,18 +183,21 @@ async def store_and_parse_movie_stream_data(
             seeders=parsed_data["seeders"],
             meta_id=video_id,
         )
+        '''
         try:
             await torrent_stream.create()
         except DuplicateKeyError:
             # Skip if the stream already exists
             continue
+        '''
         streams.append(torrent_stream)
         if torrent_stream.filename is None:
             info_hashes.append(stream["infoHash"])
 
+    '''
     if info_hashes:
         update_torrent_movie_streams_metadata.send(info_hashes)
-
+    '''
     return streams
 
 
@@ -281,7 +285,7 @@ async def store_and_parse_series_stream_data(
                 episodes=episode_data,
             ),
         )
-        await torrent_stream.create()
+        #await torrent_stream.create()
         episode_item = torrent_stream.get_episode(season, episode)
 
         streams.append(torrent_stream)
@@ -289,9 +293,10 @@ async def store_and_parse_series_stream_data(
         if episode_item and episode_item.size is None:
             info_hashes.append(stream["infoHash"])
 
+    '''
     if info_hashes:
         update_torrent_series_streams_metadata.send(info_hashes)
-
+    '''
     return streams
 
 

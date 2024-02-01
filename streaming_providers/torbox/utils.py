@@ -1,13 +1,17 @@
+import logging
+import re
 from typing import Any
 
 import PTT
 
 from thefuzz import fuzz
 
+import utils.validation_helper
 from db.models import TorrentStreams
 from db.schemas import UserData
 from streaming_providers.exceptions import ProviderException
 from streaming_providers.torbox.client import Torbox
+from utils.validation_helper import is_video_file, get_season_and_episode
 
 
 def get_video_url_from_torbox(
@@ -15,6 +19,7 @@ def get_video_url_from_torbox(
     magnet_link: str,
     user_data: UserData,
     filename: str,
+    season: int = None,
     episode: int = None,
     **kwargs,
 ) -> str:
@@ -27,7 +32,7 @@ def get_video_url_from_torbox(
             torrent_info["download_finished"] is True
             and torrent_info["download_present"] is True
         ):
-            file_id = select_file_id_from_torrent(torrent_info, filename, episode)
+            file_id = select_file_id_from_torrent(torrent_info, filename, season, episode)
             response = torbox_client.create_download_link(
                 torrent_info.get("id"),
                 file_id,
@@ -41,7 +46,7 @@ def get_video_url_from_torbox(
         if "Found Cached" in response.get("detail"):
             torrent_info = torbox_client.get_available_torrent(info_hash)
             if torrent_info:
-                file_id = select_file_id_from_torrent(torrent_info, filename, episode)
+                file_id = select_file_id_from_torrent(torrent_info, filename, season, episode)
                 response = torbox_client.create_download_link(
                     torrent_info.get("id"),
                     file_id,
@@ -54,20 +59,33 @@ def get_video_url_from_torbox(
     )
 
 
+
+# Yield successive n-sized
+# chunks from l.
+def divide_chunks(l, n):
+    # looping till length l
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
 def update_torbox_cache_status(
     streams: list[TorrentStreams], user_data: UserData, **kwargs
 ):
     """Updates the cache status of streams based on Torbox's instant availability."""
 
-    try:
-        torbox_client = Torbox(token=user_data.streaming_provider.token)
-        instant_availability_data = torbox_client.get_torrent_instant_availability(
-            [stream.id for stream in streams]
-        )
-        for stream in streams:
-            stream.cached = bool(stream.id in instant_availability_data)
-    except ProviderException:
-        pass
+    # Torbox allows only 100 torrents to be passed for cache status, send 40 at a time.
+    streams_divided_list = list(divide_chunks(streams, 80))
+    for streams_list in streams_divided_list:
+        try:
+            torbox_client = Torbox(token=user_data.streaming_provider.token)
+            instant_availability_data = torbox_client.get_torrent_instant_availability(
+                [stream.id for stream in streams_list]
+            ) or []
+            for stream in streams_list:
+                stream.cached = bool(stream.id in instant_availability_data)
+        except ProviderException as e:
+            logging.error(f"Failed to get cached status from torbox {e}")
+            pass
 
 
 def fetch_downloaded_info_hashes_from_torbox(
@@ -86,10 +104,11 @@ def fetch_downloaded_info_hashes_from_torbox(
 
 
 def select_file_id_from_torrent(
-    torrent_info: dict[str, Any], filename: str, episode: int
+    torrent_info: dict[str, Any], filename: str, season: int, episode: int
 ) -> int:
     """Select the file id from the torrent info."""
     files = torrent_info["files"]
+    '''
     exact_match = next((f for f in files if filename in f["name"]), None)
     if exact_match:
         return exact_match["id"]
@@ -115,6 +134,29 @@ def select_file_id_from_torrent(
         )
 
     return selected_file["id"]
+    '''
+    possible_links = []
+    for index, file in enumerate(files):
+        if filename is None or filename == "":
+            if is_video_file(file["name"]):
+                possible_links.append(file)
+        else:
+            parsed_season, parsed_episode = get_season_and_episode(file["name"].split("/")[-1])
+            if (is_video_file(file["name"]) and
+                season in parsed_season and
+                episode in parsed_episode):
+                    #re.search(filename, file["name"], re.IGNORECASE)):
+                possible_links.append(file)
+
+    if len(possible_links) > 1:
+        selected = max(possible_links, key=lambda x: x["size"])
+        return selected["id"]
+    elif len(possible_links) == 1:
+        return possible_links[0]["id"]
+
+    raise ProviderException(
+        "No matching file available for this torrent", "no_matching_file.mp4"
+    )
 
 
 def delete_all_torrents_from_torbox(user_data: UserData, **kwargs):
