@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Core Application Settings
-    addon_name: str = "MediaFusion"
+    addon_name: str = "Hosted MediaFusion"
     host_url: str
     secret_key: str = Field(..., max_length=32, min_length=32)
     api_password: str
@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     prowlarr_background_title_search: bool = False
     prowlarr_search_query_timeout: int = 120
     prowlarr_search_interval_hour: int = 24
-    prowlarr_immediate_max_process: int = 10
-    prowlarr_immediate_max_process_time: int = 15
+    prowlarr_immediate_max_process: int = 0
+    prowlarr_immediate_max_process_time: int = 60
     prowlarr_feed_scrape_interval_hour: int = 3
 
     # Torrentio Settings
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     local_config_path: str = "resources/json/scraper_config.json"
 
     # Feature toggles
-    is_scrap_from_torrentio: bool = True
+    is_scrap_from_torrentio: bool = False
     is_scrap_from_zilean: bool = False
     enable_rate_limit: bool = False
     validate_m3u8_urls_liveness: bool = True

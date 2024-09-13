@@ -9,8 +9,10 @@ from ratelimit import limits, sleep_and_retry
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from db.models import TorrentStreams, MediaFusionMetaData
+from db.schemas import TorrentStreamsList
 from utils.parser import calculate_max_similarity_ratio
 from utils.runtime_const import REDIS_ASYNC_CLIENT
+from utils.lock import acquire_redis_lock, release_redis_lock
 
 
 class ScraperError(Exception):
@@ -48,12 +50,26 @@ class BaseScraper(abc.ABC):
             @wraps(func)
             async def wrapper(self, *args, **kwargs):
                 cache_key = self.get_cache_key(*args, **kwargs)
-                cached_result = await REDIS_ASYNC_CLIENT.get(cache_key)
-                if cached_result:
+                # OC and Torbox together will query twice, so lock, and hopefully the next query will hit the cache
+                acquired, lock = await acquire_redis_lock(
+                    f"{cache_key}_lock",
+                    timeout=120,
+                    block=True,
+                )
+                if not acquired:
                     return []
 
+                cached_result = await REDIS_ASYNC_CLIENT.get(cache_key)
+                if cached_result:
+                    await release_redis_lock(lock)
+                    self.logger.info(f"Returning cached content result for {cache_key}")
+                    return TorrentStreamsList.model_validate_json(cached_result).streams
+
                 result = await func(self, *args, **kwargs)
-                await REDIS_ASYNC_CLIENT.set(cache_key, "True", ex=ttl)
+                # Cache only if list is non empty
+                if result:
+                    await REDIS_ASYNC_CLIENT.set(cache_key, TorrentStreamsList(streams=result).model_dump_json(exclude_none=True), ex=ttl)
+                await release_redis_lock(lock)
                 return result
 
             return wrapper
@@ -181,7 +197,7 @@ class BaseScraper(abc.ABC):
             self.logger.debug(
                 f"Title mismatch: '{parsed_title}' vs. '{metadata.title}'. Torrent title: '{torrent_title}'"
             )
-            return False
+            #return False
 
         # Validate year based on a catalog type
         if catalog_type == "movie" and parsed_year != metadata.year:

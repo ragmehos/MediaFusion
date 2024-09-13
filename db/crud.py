@@ -184,7 +184,7 @@ async def get_movie_data_by_id(movie_id: str) -> Optional[MediaFusionMovieMetaDa
             stars=list(set(star.name for star in movie.cast))[10:],
         )
         try:
-            await movie_data.create()
+            #await movie_data.create()
             logging.info("Added metadata for movie %s", movie_data.title)
         except (RevisionIdWasChanged, DuplicateKeyError):
             # Wait for a moment before re-fetching to mitigate rapid retry issues
@@ -232,7 +232,7 @@ async def get_series_data_by_id(
             stars=list(set(star.name for star in series.cast))[10:],
         )
         try:
-            await series_data.create()
+            #await series_data.create()
             logging.info("Added metadata for series %s", series_data.title)
         except (RevisionIdWasChanged, DuplicateKeyError):
             # Wait for a moment before re-fetching to mitigate rapid retry issues
@@ -389,6 +389,7 @@ async def get_series_streams(
 async def store_new_torrent_streams(
     streams: list[TorrentStreams] | set[TorrentStreams],
 ):
+    return
     if not streams:
         return
     bulk_writer = BulkWriter()
@@ -737,7 +738,8 @@ async def get_or_create_metadata(metadata, media_type, is_imdb):
         if not is_exist_db:
             new_data = create_metadata_object(metadata, imdb_data, metadata_class)
             try:
-                await new_data.create()
+                #await new_data.create()
+                logging.info("Added metadata for %s", new_data.title)
             except DuplicateKeyError:
                 logging.warning("Duplicate %s found: %s", media_type, new_data.title)
     else:
@@ -776,7 +778,7 @@ async def save_metadata(metadata: dict, media_type: str, is_imdb: bool = True):
             episodes=episodes,
         )
 
-    await new_stream.create()
+    #await new_stream.create()
     logging.info(
         "Added stream for %s %s, info_hash: %s",
         media_type,

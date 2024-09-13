@@ -34,7 +34,7 @@ diskcache==5.6.3
 distlib==0.3.8
 dnspython==2.6.1
 dramatiq==1.17.0
-fastapi==0.114.1
+fastapi==0.114.2
 filelock==3.16.0
 flatbencode==0.2.1
 frozenlist==1.4.1
@@ -46,9 +46,9 @@ hiredis==3.0.0
 httpcore==1.0.5
 httptools==0.6.1
 httpx==0.27.2
-humanize @ git+https://github.com/python-humanize/humanize.git@94fc781da2bb030ba359a12dd147171613c95b67
+humanize @ git+https://github.com/python-humanize/humanize.git@c5dcf109d1bf358cf29ecda15f7f640e52ecf704
 hyperlink==21.0.0
-idna==3.8
+idna==3.10
 incremental==24.7.2
 itemadapter==0.9.0
 itemloaders==1.3.1
@@ -65,12 +65,12 @@ motor==3.5.1
 multidict==6.1.0
 packaging==24.1
 parsel==1.9.1
-parsett @ git+https://github.com/mhdzumair/PTT@80783658cf72afbc387a790cc8cf3d4ad04626cf
+parsett==1.2.7
 PikPakAPI @ git+https://github.com/mhdzumair/PikPakAPI.git@22b06a9d45e1f8462225819b0a8d708f498eee42
 pillow==10.4.0
 pipenv==2024.0.1
 platformdirs==4.2.2
-playwright==1.46.0
+playwright==1.47.0
 prometheus_client==0.20.0
 Protego==0.3.1
 pyasn1==0.6.1
@@ -83,7 +83,7 @@ pydantic==2.9.1
 pydantic-settings==2.5.2
 pydantic_core==2.23.3
 PyDispatcher==2.0.7
-pyee==11.1.0
+pyee==12.0.0
 pymongo==4.8.0
 pyOpenSSL==24.2.1
 pypng==0.20220715.0
@@ -95,6 +95,7 @@ PyYAML==6.0.2
 qrcode==7.4.2
 queuelib==1.7.0
 rapidfuzz==3.9.7
+ratelimit==2.2.1
 redis==5.0.8
 referencing==0.35.1
 regex==2023.12.25
@@ -105,12 +106,13 @@ Scrapy==2.11.2
 scrapy-playwright==0.0.41
 seedrcc==1.0.1
 service-identity==24.1.0
-setuptools==74.1.2
+setuptools==75.0.0
 six==1.16.0
 sniffio==1.3.1
 soupsieve==2.6
 SQLAlchemy==2.0.34
 starlette==0.38.5
+tenacity==9.0.0
 thefuzz==0.22.1
 tldextract==5.1.2
 toml==0.10.2
@@ -122,7 +124,7 @@ types-python-dateutil==2.9.0.20240906
 typing_extensions==4.12.2
 tzdata==2024.1
 tzlocal==5.2
-urllib3==2.2.2
+urllib3==2.2.3
 uvicorn==0.30.6
 uvloop==0.20.0
 validators==0.34.0

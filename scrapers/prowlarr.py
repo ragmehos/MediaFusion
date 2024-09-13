@@ -295,9 +295,13 @@ class ProwlarrScraper(BaseScraper):
         search_type: Literal["search", "tvsearch", "movie"],
         categories: list[int],
         search_query: str = None,
+        season: int = None,
+        episode: int = None,
     ) -> dict:
         if search_type in ["movie", "tvsearch"]:
             search_query = f"{{IMDbId:{video_id}}}"
+            if season is not None or episode is not None:
+                search_query += f"{{IMDbId:{video_id}}}{{Season:{season}}}{{Episode:{episode}}}"
 
         return {
             "query": search_query,
@@ -389,6 +393,8 @@ class ProwlarrScraper(BaseScraper):
             search_type,
             categories,
             search_query,
+            season,
+            episode
         )
         search_results = await self.fetch_stream_data(params)
         self.logger.info(
@@ -469,7 +475,7 @@ class ProwlarrScraper(BaseScraper):
             self.logger.warning(
                 f"Series has multiple seasons: {parsed_data.get('title')} ({parsed_data.get('year')}) ({metadata.id}) : {parsed_data.get('seasons')}"
             )
-            return None
+            #return None
 
         parsed_data = await self.parse_prowlarr_data(
             stream_data, catalog_type, parsed_data
@@ -551,7 +557,7 @@ class ProwlarrScraper(BaseScraper):
                 self.logger.warning(
                     f"Episode not found in stream: '{stream_data.get('title')}' Scraping for: S{season}E{episode}"
                 )
-                return None
+                #return None
 
         processed_info_hashes.add(parsed_data["info_hash"])
         self.logger.info(
@@ -562,6 +568,7 @@ class ProwlarrScraper(BaseScraper):
     async def parse_prowlarr_data(
         self, prowlarr_data: dict, catalog_type: str, parsed_data: dict
     ) -> dict | None:
+        '''
         download_url = prowlarr_data.get("downloadUrl") or prowlarr_data.get(
             "magnetUrl"
         )
@@ -579,7 +586,11 @@ class ProwlarrScraper(BaseScraper):
         except Exception as e:
             self.logger.error(f"Error getting torrent data: {e}")
             return None
-
+        '''
+        torrent_data = {
+            "info_hash": prowlarr_data.get("infoHash"),
+            "announce_list": [],
+        }
         info_hash = torrent_data.get("info_hash", "").lower()
         if not info_hash:
             return None

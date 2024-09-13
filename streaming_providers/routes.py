@@ -55,7 +55,7 @@ async def get_cached_stream_url_and_redirect(
                 user_data.mediaflow_config.proxy_url,
                 "/proxy/stream",
                 cached_stream_url,
-                query_params={"api_password": user_data.mediaflow_config.api_password},
+                query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
                 response_headers={
                     "Content-Disposition": "attachment, filename={}".format(
                         path.basename(cached_stream_url)
@@ -138,7 +138,7 @@ def apply_mediaflow_proxy_if_needed(video_url, user_data):
             user_data.mediaflow_config.proxy_url,
             "/proxy/stream",
             video_url,
-            query_params={"api_password": user_data.mediaflow_config.api_password},
+            query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
             response_headers={
                 "Content-Disposition": "attachment, filename={}".format(
                     path.basename(video_url)
@@ -213,6 +213,7 @@ async def streaming_provider_endpoint(
         cached_stream_url_key, user_data, response
     )
     if cached_stream_url:
+        logging.info("Returing cached stream url")
         return cached_stream_url
 
     # Fetch stream from DB
@@ -314,3 +315,4 @@ router.include_router(seedr_router, prefix="/seedr", tags=["seedr"])
 router.include_router(realdebrid_router, prefix="/realdebrid", tags=["realdebrid"])
 router.include_router(debridlink_router, prefix="/debridlink", tags=["debridlink"])
 router.include_router(premiumize_router, prefix="/premiumize", tags=["premiumize"])
+router.include_router(torbox_router, prefix="/torbox", tags=["torbox"])

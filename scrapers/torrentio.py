@@ -130,11 +130,13 @@ class TorrentioScraper(BaseScraper):
 
                 if catalog_type == "series":
                     if seasons := parsed_data["metadata"].get("seasons"):
-                        if len(seasons) == 1:
-                            season_number = seasons[0]
+                        #if len(seasons) == 1:
+                        season_number = seasons[0]
+                        '''
                         else:
                             # Skip This Stream due to multiple seasons in one torrent.
                             return None
+                        '''
                     else:
                         season_number = season
 

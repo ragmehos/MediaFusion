@@ -88,7 +88,9 @@ def delete_all_torrents_from_oc(user_data: UserData, **kwargs):
 
 def login_to_oc(user_data: UserData):
     import os
+    import logging
     if os.environ.get("OFFCLOUD_USER") is None:
+        logging.info("No offcloud user to login")
         return
 
     import requests
@@ -103,11 +105,12 @@ def login_to_oc(user_data: UserData):
             user_data.mediaflow_config.proxy_url,
             "/proxy/endpoint",
             "https://offcloud.com/api/login",
-            query_params={"api_password": user_data.mediaflow_config.api_password},
+            query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
         )
     else:
         url = "https://offcloud.com/api/login"
 
+    logging.info(f"Logging into to {url}")
     session.post(url,
                  data={'username': os.environ.get("OFFCLOUD_USER"),
                        'password': os.environ.get("OFFCLOUD_PASSWORD")})
