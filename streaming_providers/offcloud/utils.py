@@ -103,7 +103,7 @@ def login_to_oc(user_data: UserData):
             user_data.mediaflow_config.proxy_url,
             "/proxy/endpoint",
             "https://offcloud.com/api/login",
-            query_params={"api_password": user_data.mediaflow_config.api_password},
+            query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
         )
     else:
         url = "https://offcloud.com/api/login"

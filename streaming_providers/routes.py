@@ -54,7 +54,7 @@ async def get_cached_stream_url_and_redirect(
                 user_data.mediaflow_config.proxy_url,
                 "/proxy/stream",
                 cached_stream_url,
-                query_params={"api_password": user_data.mediaflow_config.api_password},
+                query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
             )
         return RedirectResponse(
             url=cached_stream_url, headers=response.headers, status_code=302
@@ -126,7 +126,7 @@ def apply_mediaflow_proxy_if_needed(video_url, user_data):
             user_data.mediaflow_config.proxy_url,
             "/proxy/stream",
             video_url,
-            query_params={"api_password": user_data.mediaflow_config.api_password},
+            query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
         )
     return video_url
 
