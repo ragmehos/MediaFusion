@@ -19,7 +19,7 @@ from utils.runtime_const import SECRET_KEY
 logger = logging.getLogger(__name__)
 
 # Constants
-REDIS_THRESHOLD = 1000  # Threshold for Redis storage in characters
+REDIS_THRESHOLD = 100000  # Threshold for Redis storage in characters
 DIRECT_PREFIX = "D-"  # Prefix for direct encrypted data
 REDIS_PREFIX = "R-"  # Prefix for Redis-stored data
 

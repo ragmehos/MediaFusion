@@ -15,7 +15,7 @@ async def get_video_url_from_torbox(
     user_data: UserData,
     filename: str,
     user_ip: str,
-    stream: TorrentStreams,
+    stream: Optional[TorrentStreams] = None,
     season: Optional[int] = None,
     episode: Optional[int] = None,
     **kwargs: Any,
@@ -45,13 +45,15 @@ async def get_video_url_from_torbox(
                         "Torrent did not reach downloaded status.",
                         "torrent_not_downloaded.mp4",
                     )
+            '''
             # If torrent doesn't exist, add it
             if stream.torrent_file:
                 response = await torbox_client.add_torrent_file(
                     stream.torrent_file, stream.torrent_name
                 )
             else:
-                response = await torbox_client.add_magnet_link(magnet_link)
+            '''
+            response = await torbox_client.add_magnet_link(magnet_link)
             # Response detail has "Found Cached Torrent" If it's a cached torrent,
             # create a download link from it directly in the same call.
             if "Found Cached" in response.get("detail", ""):

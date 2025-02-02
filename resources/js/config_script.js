@@ -17,6 +17,7 @@ const providerSignupLinks = {
     premiumize: 'https://www.premiumize.me',
     qbittorrent: 'https://github.com/mhdzumair/MediaFusion/tree/main/streaming_providers/qbittorrent#qbittorrent-webdav-setup-options-with-mediafusion',
     stremthru: 'https://github.com/MunifTanjim/stremthru?tab=readme-ov-file#configuration',
+    easydebrid: 'https://paradise-cloud.com/products/easydebrid',
 };
 const providerTokenTooltip = {
     '*': `Enter Encoded Token previously generated or Click 'Authorize' to generate a new token or Provide your Private Token.`,

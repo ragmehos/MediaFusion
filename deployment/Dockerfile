@@ -11,7 +11,7 @@ RUN apt-get update && \
 
 # Create the mediafusion user with a specified home directory
 RUN groupadd -r mediafusion && \
-    useradd --no-log-init -r -g mediafusion -m -d /home/mediafusion mediafusion
+    useradd --no-log-init -r -g mediafusion -m -u 1000 -d /home/mediafusion mediafusion
 
 RUN chown -R mediafusion:mediafusion /mediafusion
 USER mediafusion
@@ -30,7 +30,6 @@ ARG VERSION
 
 WORKDIR /mediafusion
 
-
 # Install runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
@@ -42,6 +41,7 @@ COPY --from=builder /home/mediafusion/.local /home/mediafusion/.local
 COPY --from=builder /etc/group /etc/passwd /etc/
 
 ENV PATH="/home/mediafusion/.local/bin:$PATH"
+ENV HOME="/home/mediafusion"
 
 ENV VERSION=${VERSION}
 

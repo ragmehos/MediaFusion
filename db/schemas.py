@@ -224,14 +224,14 @@ class MDBListConfig(BaseModel):
 
 class UserData(BaseModel):
     streaming_provider: StreamingProvider | None = Field(default=None, alias="sp")
-    selected_catalogs: list[str] = Field(alias="sc", default_factory=list)
+    selected_catalogs: list[str] = Field(alias="sc", default=list(const.CATALOG_DATA.keys()))
     selected_resolutions: list[str | None] = Field(
         default=const.RESOLUTIONS, alias="sr"
     )
     enable_catalogs: bool = Field(default=True, alias="ec")
     enable_imdb_metadata: bool = Field(default=False, alias="eim")
     max_size: int | str | float = Field(default=math.inf, alias="ms")
-    max_streams_per_resolution: int = Field(default=10, alias="mspr")
+    max_streams_per_resolution: int = Field(default=100, alias="mspr")
     show_full_torrent_name: bool = Field(default=True, alias="sftn")
     torrent_sorting_priority: list[SortingOption] = Field(
         default_factory=lambda: [
@@ -239,7 +239,7 @@ class UserData(BaseModel):
         ],
         alias="tsp",
     )
-    nudity_filter: list[NudityStatus] = Field(default=[NudityStatus.SEVERE], alias="nf")
+    nudity_filter: list[NudityStatus] = Field(default=[NudityStatus.DISABLE], alias="nf")
     certification_filter: list[
         Literal[
             "Disable",
@@ -251,7 +251,7 @@ class UserData(BaseModel):
             "Adults",
             "Adults+",
         ]
-    ] = Field(default=["Adults+"], alias="cf")
+    ] = Field(default=["Disable"], alias="cf")
     api_password: str | None = Field(default=None, alias="ap")
     language_sorting: list[str | None] = Field(
         default=const.LANGUAGES_FILTERS, alias="ls"
@@ -261,7 +261,7 @@ class UserData(BaseModel):
     )
     mediaflow_config: MediaFlowConfig | None = Field(default=None, alias="mfc")
     rpdb_config: RPDBConfig | None = Field(default=None, alias="rpc")
-    live_search_streams: bool = Field(default=False, alias="lss")
+    live_search_streams: bool = Field(default=True, alias="lss")
     contribution_streams: bool = Field(default=False, alias="cs")
     show_language_country_flag: bool = Field(default=False, alias="slcf")
     mdblist_config: MDBListConfig | None = Field(default=None, alias="mdb")

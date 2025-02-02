@@ -91,7 +91,7 @@ class FeedScraper(ABC):
                 all_results,
                 batch_size=20,
                 cb=circuit_breaker,
-                rate_limit_delay=1,
+                rate_limit_delay=0,
                 retry_exceptions=[httpx.HTTPStatusError],
                 scraper=self.scraper,
                 processed_info_hashes=processed_info_hashes,
@@ -270,9 +270,12 @@ async def get_metadata_by_id(imdb_id: str, media_type: str):
 
 
 # Dramatiq actors for scheduling
+'''
 @dramatiq.actor(time_limit=60 * 60 * 1000, priority=5, queue_name="scrapy")
 @minimum_run_interval(hours=settings.prowlarr_feed_scrape_interval_hour)
+'''
 async def run_prowlarr_feed_scraper(**kwargs):
+    return
     if not settings.is_scrap_from_prowlarr:
         return
     logger.info("Running Prowlarr feed scraper")
@@ -280,9 +283,12 @@ async def run_prowlarr_feed_scraper(**kwargs):
     await scraper.scrape_feed()
 
 
+'''
 @dramatiq.actor(time_limit=60 * 60 * 1000, priority=5, queue_name="scrapy")
 @minimum_run_interval(hours=settings.jackett_feed_scrape_interval_hour)
+'''
 async def run_jackett_feed_scraper(**kwargs):
+    return
     if not settings.is_scrap_from_jackett:
         return
     logger.info("Running Jackett feed scraper")

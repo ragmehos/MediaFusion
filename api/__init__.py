@@ -1,4 +1,5 @@
 # Desc: Setup the dramatiq broker and middleware.
+'''
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware import (
@@ -34,3 +35,4 @@ redis_broker.middleware = [
     Abortable(backend=RedisBackend.from_url(settings.redis_url)),
 ]
 dramatiq.set_broker(redis_broker)
+'''

@@ -15,7 +15,7 @@ class TorrentProjection(BaseModel):
     announce_list: list[str]
 
 
-@dramatiq.actor(time_limit=10 * 60 * 1000, priority=5, max_retries=3)
+#@dramatiq.actor(time_limit=10 * 60 * 1000, priority=5, max_retries=3)
 async def update_torrent_seeders(page=0, page_size=25, *args, **kwargs):
     # Calculate offset for pagination
     offset = page * page_size

@@ -111,8 +111,9 @@ async def parse_m3u_playlist(
     if batch:
         await add_tv_metadata(batch=batch, namespace=namespace)
 
-
+'''
 @dramatiq.actor(priority=2, time_limit=15 * 60 * 1000, queue_name="scrapy")
+'''
 def parse_m3u_playlist_background(
     namespace: str,
     playlist_source: str,
@@ -126,8 +127,9 @@ def parse_m3u_playlist_background(
         playlist_redis_key=playlist_redis_key,
     )
 
-
+'''
 @dramatiq.actor(time_limit=30 * 60 * 1000, priority=5)  # time limit is 30 minutes
+'''
 async def validate_tv_streams_in_db(page=0, page_size=25, *args, **kwargs):
     """Validate TV streams in the database."""
     offset = page * page_size

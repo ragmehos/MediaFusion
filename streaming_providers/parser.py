@@ -28,7 +28,7 @@ async def select_file_index_from_torrent(
             if basename(file[name_key]) == filename and is_video_file(filename):
                 return index
 
-    if season and episode:
+    if season or episode:
         # Select the file with the matching episode number
         for index, file in enumerate(files):
             if not is_video_file(file[name_key]):
@@ -37,7 +37,7 @@ async def select_file_index_from_torrent(
             found_season = season_parsed_data.get("seasons")
             if (
                 found_season and season in found_season
-            ) or episode in season_parsed_data.get("episodes"):
+            ) and episode in season_parsed_data.get("episodes"):
                 return index
         raise ProviderException(
             "No matching file available for this torrent", "no_matching_file.mp4"

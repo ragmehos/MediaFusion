@@ -432,6 +432,7 @@ async def get_cached_torrent_streams(
     season: Optional[int] = None,
     episode: Optional[int] = None,
 ) -> list[TorrentStreams]:
+    return []
     # Create a unique key for Redis
     # Try to get the data from the Redis cache
     cached_data = await REDIS_ASYNC_CLIENT.get(cache_key)
@@ -550,7 +551,9 @@ async def get_streams_base(
     redis_lock = None
 
     if lock_key:
-        _, redis_lock = await acquire_redis_lock(lock_key, timeout=60, block=True)
+        acquired, redis_lock = await acquire_redis_lock(lock_key, timeout=60, block=True)
+        if not acquired:
+            raise []
 
     # Get cached streams
     cached_streams = await get_cached_torrent_streams(
@@ -574,8 +577,9 @@ async def get_streams_base(
             background_tasks.add_task(
                 store_new_torrent_streams, new_streams, redis_lock=redis_lock
             )
-        else:
-            await release_redis_lock(redis_lock)
+        # This code is different because store_new_torrent_streams releases lock but we return quickly from there,
+        # so always release
+        await release_redis_lock(redis_lock)
     else:
         all_streams = cached_streams
 
@@ -641,6 +645,7 @@ async def get_series_streams(
 async def store_new_torrent_streams(
     streams: list[TorrentStreams] | set[TorrentStreams], redis_lock=None
 ):
+    return
     if not streams:
         return
     bulk_writer = BulkWriter()
@@ -949,7 +954,8 @@ async def get_or_create_metadata(
         if not is_exist_db:
             new_data = create_metadata_object(metadata, imdb_data, metadata_class)
             try:
-                await new_data.create()
+                #await new_data.create()
+                logging.info("Added metadata for %s", new_data.title)
             except DuplicateKeyError:
                 logging.warning("Duplicate %s found: %s", media_type, new_data.title)
     else:
@@ -1073,10 +1079,12 @@ async def save_metadata(
             logging.warning("No episodes found for series %s", metadata["title"])
             return
         new_stream.episode_files = episodes
-
+    '''
+>>>>>>> 93c9d7c (Custom deployment with no saving and always fetching + offcloud webdav)
     await new_stream.create()
     if should_organize_episodes:
         await organize_episodes(metadata["id"])
+    '''
     logging.info(
         "Added stream for %s %s (%s), info_hash: %s",
         media_type,

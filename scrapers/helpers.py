@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 
-import dramatiq
+#import dramatiq
 from bs4 import BeautifulSoup
 import httpx
 
@@ -14,7 +14,7 @@ from utils.torrent import info_hashes_to_torrent_metadata
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
+#@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
 async def update_torrent_movie_streams_metadata(
     info_hashes: list[str], tracker: list[str] = None
 ):
@@ -40,7 +40,8 @@ async def update_torrent_movie_streams_metadata(
             logging.info(f"Updated {torrent_stream.id} metadata")
 
 
-@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
+
+#@dramatiq.actor(time_limit=30 * 60 * 1000, priority=10)
 async def update_torrent_series_streams_metadata(
     info_hashes: list[str], tracker: list[str] = None
 ):

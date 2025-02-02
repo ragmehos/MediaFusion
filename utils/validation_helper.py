@@ -4,6 +4,7 @@ import logging
 from urllib.parse import urlparse, urljoin
 
 import httpx
+import PTT
 
 from db import schemas
 from db.config import settings
@@ -363,3 +364,4 @@ async def validate_mdblist_token(user_data: schemas.UserData) -> dict:
         url=validation_url,
         invalid_creds_message="Invalid MDBList API Key. Please check your MDBList API Key.",
     )
+

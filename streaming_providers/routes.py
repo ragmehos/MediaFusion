@@ -32,6 +32,7 @@ from streaming_providers.exceptions import ProviderException
 from streaming_providers.premiumize.api import router as premiumize_router
 from streaming_providers.realdebrid.api import router as realdebrid_router
 from streaming_providers.seedr.api import router as seedr_router
+from streaming_providers.torbox.api import router as torbox_router
 from utils import crypto, torrent, wrappers, const
 from utils.lock import acquire_redis_lock, release_redis_lock
 from utils.network import get_user_public_ip, get_user_data, encode_mediaflow_proxy_url
@@ -67,7 +68,7 @@ async def get_cached_stream_url_and_redirect(
                 user_data.mediaflow_config.proxy_url,
                 "/proxy/stream",
                 cached_stream_url,
-                query_params={"api_password": user_data.mediaflow_config.api_password},
+                query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
                 response_headers={
                     "Content-Disposition": "attachment, filename={}".format(
                         path.basename(cached_stream_url)
@@ -97,8 +98,9 @@ async def get_or_create_video_url(
     """
     Retrieves or generates the video URL based on stream data and user info.
     """
-    magnet_link = torrent.convert_info_hash_to_magnet(info_hash, stream.announce_list)
-    episodes = stream.get_episodes(season, episode)
+
+    magnet_link = torrent.convert_info_hash_to_magnet(info_hash, list(torrent.TRACKERS))
+    '''
     if not filename:
         episode_data = episodes[0] if episodes else None
         filename = episode_data.filename if episode_data else stream.filename
@@ -108,6 +110,7 @@ async def get_or_create_video_url(
             (episode for episode in episodes if episode.filename == filename), None
         )
     file_index = episode_data.file_index if episode_data else stream.file_index
+    '''
 
     get_video_url = mapper.GET_VIDEO_URL_FUNCTIONS.get(
         user_data.streaming_provider.service
@@ -116,15 +119,15 @@ async def get_or_create_video_url(
         info_hash=info_hash,
         magnet_link=magnet_link,
         user_data=user_data,
-        filename=filename,
-        file_index=file_index,
+        filename=None,
+        #file_index=file_index,
         user_ip=user_ip,
         season=season,
         episode=episode,
         max_retries=1,
         retry_interval=0,
-        stream=stream,
-        torrent_name=stream.torrent_name,
+        #stream=stream,
+        #torrent_name=stream.torrent_name,
         background_tasks=background_tasks,
     )
 
@@ -149,7 +152,7 @@ def apply_mediaflow_proxy_if_needed(video_url, user_data):
             user_data.mediaflow_config.proxy_url,
             "/proxy/stream",
             video_url,
-            query_params={"api_password": user_data.mediaflow_config.api_password},
+            query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
             response_headers={
                 "Content-Disposition": "attachment, filename={}".format(
                     path.basename(video_url)
@@ -242,10 +245,11 @@ async def streaming_provider_endpoint(
         cached_stream_url_key, user_data, response
     )
     if cached_stream_url:
+        logging.info("Returing cached stream url")
         return cached_stream_url
 
     # Fetch stream from DB
-    stream = await fetch_stream_or_404(info_hash)
+    stream = None #await fetch_stream_or_404(info_hash)
 
     # Acquire Redis lock to prevent duplicate download tasks
     acquired, lock = await acquire_redis_lock(
@@ -269,6 +273,7 @@ async def streaming_provider_endpoint(
         )
         await store_cached_info_hashes(user_data.streaming_provider, [info_hash])
         await cache_stream_url(cached_stream_url_key, video_url)
+        logging.info(f"Video URL : {video_url}")
         video_url = apply_mediaflow_proxy_if_needed(video_url, user_data)
         redirect_status_code = 302
     except ProviderException as error:
@@ -390,3 +395,4 @@ router.include_router(seedr_router, prefix="/seedr", tags=["seedr"])
 router.include_router(realdebrid_router, prefix="/realdebrid", tags=["realdebrid"])
 router.include_router(debridlink_router, prefix="/debridlink", tags=["debridlink"])
 router.include_router(premiumize_router, prefix="/premiumize", tags=["premiumize"])
+router.include_router(torbox_router, prefix="/torbox", tags=["torbox"])

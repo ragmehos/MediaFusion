@@ -4,6 +4,7 @@ import aiohttp
 
 from streaming_providers.debrid_client import DebridClient
 from streaming_providers.exceptions import ProviderException
+from utils import const
 
 
 class Torbox(DebridClient):
@@ -11,6 +12,7 @@ class Torbox(DebridClient):
 
     async def initialize_headers(self):
         self.headers = {"Authorization": f"Bearer {self.token}"}
+        self.headers.update(const.NO_CACHE_HEADERS)
 
     async def disable_access_token(self):
         pass

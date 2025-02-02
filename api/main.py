@@ -21,7 +21,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.responses import HTMLResponse
 
-from api import middleware
+#from asgiref.wsgi import WsgiToAsgi
+#from a2wsgi import WSGIMiddleware
+
+from api import middleware#, offcloud_wsgidav
 from api.scheduler import setup_scheduler
 from db import crud, database, schemas
 from db.config import settings
@@ -121,6 +124,54 @@ app.add_middleware(middleware.TimingMiddleware)
 app.add_middleware(middleware.SecureLoggingMiddleware)
 
 app.mount("/static", StaticFiles(directory="resources"), name="static")
+
+
+# Wrap wsgidav app with WsgiToAsgi
+#wsgi_app1 = WsgiToAsgi(offcloud_wsgidav.setup_wsgi())
+#wsgi_app = WSGIMiddleware(offcloud_wsgidav.setup_wsgi(), workers=15)
+
+# Mount the wsgidav app in FastAPI
+#app.mount("/webdav", wsgi_app)
+
+
+@app.on_event("startup")
+async def init_server():
+    await database.init()
+    await torrent.init_best_trackers()
+
+
+@app.on_event("startup")
+async def start_scheduler():
+    if settings.disable_all_scheduler:
+        logging.info("All Schedulers are disabled. Not setting up any jobs.")
+        return
+
+    acquired, lock = await acquire_scheduler_lock(app.state.redis)
+    if acquired:
+        try:
+            scheduler = AsyncIOScheduler()
+            setup_scheduler(scheduler)
+            scheduler.start()
+            app.state.scheduler = scheduler
+            app.state.scheduler_lock = lock
+            await asyncio.create_task(maintain_heartbeat(app.state.redis))
+        except Exception as e:
+            await release_scheduler_lock(app.state.redis, lock)
+            raise e
+
+
+@app.on_event("shutdown")
+async def stop_scheduler():
+    if hasattr(app.state, "scheduler"):
+        app.state.scheduler.shutdown(wait=False)
+
+    if hasattr(app.state, "scheduler_lock") and app.state.scheduler_lock:
+        await release_scheduler_lock(app.state.redis, app.state.scheduler_lock)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await app.state.redis.aclose()
 
 
 @app.get("/", tags=["home"])
@@ -614,6 +665,7 @@ async def get_streams(
         return {"streams": []}
 
     user_ip = await get_user_public_ip(request, user_data)
+    response.headers.update(const.NO_CACHE_HEADERS)
     user_feeds = []
     if season is None or episode is None:
         season = episode = 1
@@ -658,8 +710,9 @@ async def get_streams(
             fetched_streams = await crud.get_movie_streams(
                 user_data, secret_str, video_id, user_ip, background_tasks
             )
-            fetched_streams.extend(user_feeds)
+            #fetched_streams.extend(user_feeds)
     elif catalog_type == "series":
+        response.headers.update(const.NO_CACHE_HEADERS)
         fetched_streams = await crud.get_series_streams(
             user_data,
             secret_str,
@@ -669,7 +722,19 @@ async def get_streams(
             user_ip,
             background_tasks,
         )
-        fetched_streams.extend(user_feeds)
+        # Prefetch next episode
+        logging.info(f"Prefetching next episode {season} {episode+1}")
+        background_tasks.add_task(
+            crud.get_series_streams,
+            user_data,
+            secret_str,
+            video_id,
+            season,
+            episode + 1,
+            user_ip,
+            background_tasks,
+        )
+        #fetched_streams.extend(user_feeds)
     elif catalog_type == "events":
         fetched_streams = await crud.get_event_streams(video_id, user_data)
         response.headers.update(const.NO_CACHE_HEADERS)

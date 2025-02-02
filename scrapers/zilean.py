@@ -188,6 +188,18 @@ class ZileanScraper(BaseScraper):
                         self.metrics.record_skip("Missing episode info")
                         return None
 
+                    if season not in seasons:
+                        self.logger.warning(
+                            f"Season not found in stream: '{torrent_data.get('title')}' Scraping for: S{season}E{episode}"
+                        )
+                        return None
+
+                    if torrent_data.get("episodes") and episode not in torrent_data.get("episodes"):
+                        self.logger.warning(
+                            f"Episode not found in stream: '{torrent_data.get('title')}' Scraping for: S{season}E{episode}"
+                        )
+                        return None
+
                     torrent_stream.episode_files = episode_data
 
                 # Record metrics for successful processing

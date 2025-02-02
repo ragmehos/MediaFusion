@@ -85,6 +85,8 @@ class ProwlarrScraper(IndexerBaseScraper):
         return item.get("indexer")
 
     def get_torrent_type(self, item: dict) -> TorrentType:
+        return TorrentType.PUBLIC
+
         if item.get("indexerFlags"):
             flag = item["indexerFlags"][0]
         else:
@@ -223,7 +225,7 @@ class ProwlarrScraper(IndexerBaseScraper):
         """Fetch search results from Prowlarr indexers"""
         results = []
         timeout = timeout or self.search_query_timeout
-
+        '''
         for indexer_id in indexer_ids:
             indexer_status = self.indexer_status.get(indexer_id, {})
             if not indexer_status.get("is_healthy", False):
@@ -236,28 +238,31 @@ class ProwlarrScraper(IndexerBaseScraper):
             indexer_name = indexer_status.get("name", f"ID:{indexer_id}")
 
             if circuit_breaker.is_closed():
-                try:
-                    search_params = {**params, "indexerIds": [indexer_id]}
-                    response = await self.http_client.get(
-                        f"{self.base_url}/api/v1/search",
-                        params=search_params,
-                        headers=self.headers,
-                        timeout=timeout,
-                    )
-                    response.raise_for_status()
-                    indexer_results = response.json()
+        '''
+        try:
+            search_params = {**params, }#"indexerIds": [indexer_id]}
+            self.logger.info(f"Searching prowlarr with params {search_params}")
+            response = await self.http_client.get(
+                f"{self.base_url}/api/v1/search",
+                params=search_params,
+                headers=self.headers,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            indexer_results = response.json()
+            '''
+            # Record success
+            circuit_breaker.record_success()
+            self.metrics.record_indexer_success(
+                indexer_name, len(indexer_results)
+            )
+            '''
+            results.extend(indexer_results)
 
-                    # Record success
-                    circuit_breaker.record_success()
-                    self.metrics.record_indexer_success(
-                        indexer_name, len(indexer_results)
-                    )
-                    results.extend(indexer_results)
-
-                except Exception as e:
-                    error_msg = f"Error searching indexer {indexer_name}: {str(e)}"
-                    self.logger.error(error_msg)
-
+        except Exception as e:
+            error_msg = f"Error searching indexer {indexer_ids}: {str(e)}"
+            self.logger.error(error_msg)
+        '''
                     circuit_breaker.record_failure()
                     self.metrics.record_indexer_error(indexer_name, str(e))
 
@@ -275,6 +280,7 @@ class ProwlarrScraper(IndexerBaseScraper):
                 self.metrics.record_indexer_error(
                     indexer_name, f"Circuit breaker {circuit_breaker.state}"
                 )
+        '''
 
         return results
 
@@ -284,22 +290,30 @@ class ProwlarrScraper(IndexerBaseScraper):
         search_type: Literal["search", "tvsearch", "movie"],
         categories: list[int],
         search_query: str = None,
+        season: int = None,
+        episode: int = None,
+        indexer_ids: list[int] = None,
     ) -> dict:
         """Build search parameters for Prowlarr API"""
         if search_type in ["movie", "tvsearch"]:
             search_query = f"{{IMDbId:{video_id}}}"
+            if season is not None or episode is not None:
+                search_query += f"{{Season:{season}}}{{Episode:{episode}}}"
 
         return {
             "query": search_query,
             "categories": categories,
             "type": search_type,
+            "indexerIds": indexer_ids,
         }
 
     async def parse_indexer_data(
         self, indexer_data: dict, catalog_type: str, parsed_data: dict
     ) -> Optional[dict]:
         """Parse Prowlarr-specific indexer data"""
-        download_url = await self.get_download_url(indexer_data)
+        '''
+        download_url = await self.get_download_url(prowlarr_data)
+
         if not download_url:
             return None
 
@@ -321,7 +335,11 @@ class ProwlarrScraper(IndexerBaseScraper):
         except Exception as e:
             self.logger.exception(f"Error getting torrent data: {e}")
             return None
-
+        '''
+        torrent_data = {
+            "info_hash": indexer_data.get("infoHash"),
+            "announce_list": [],
+        }
         info_hash = torrent_data.get("info_hash", "").lower()
         if not info_hash:
             return None

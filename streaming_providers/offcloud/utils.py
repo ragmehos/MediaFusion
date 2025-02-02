@@ -13,8 +13,8 @@ async def get_video_url_from_offcloud(
     info_hash: str,
     magnet_link: str,
     user_data: UserData,
-    stream: TorrentStreams,
     background_tasks: BackgroundTasks,
+    stream: Optional[TorrentStreams] = None,
     filename: Optional[str] = None,
     season: Optional[int] = None,
     episode: Optional[int] = None,
@@ -29,6 +29,7 @@ async def get_video_url_from_offcloud(
             request_id = torrent_info.get("requestId")
             torrent_info = await oc_client.get_torrent_info(request_id)
             if torrent_info["status"] == "downloaded":
+                login_to_oc(user_data)
                 return await oc_client.create_download_link(
                     request_id,
                     torrent_info,
@@ -44,19 +45,22 @@ async def get_video_url_from_offcloud(
                     "transfer_error.mp4",
                 )
         else:
+            '''
             # If torrent doesn't exist, add it
             if stream.torrent_file:
                 response_data = await oc_client.add_torrent_file(
                     stream.torrent_file, stream.torrent_name
                 )
             else:
-                response_data = await oc_client.add_magnet_link(magnet_link)
+            '''
+            response_data = await oc_client.add_magnet_link(magnet_link)
             request_id = response_data["requestId"]
 
         # Wait for download completion and get the direct link
         torrent_info = await oc_client.wait_for_status(
             request_id, "downloaded", max_retries, retry_interval
         )
+        login_to_oc(user_data)
         return await oc_client.create_download_link(
             request_id,
             torrent_info,
@@ -124,3 +128,33 @@ async def validate_offcloud_credentials(user_data: UserData, **kwargs) -> dict:
             "status": "error",
             "message": "OffCloud API key is invalid or has expired",
         }
+
+
+def login_to_oc(user_data: UserData):
+    import os
+    import logging
+    if os.environ.get("OFFCLOUD_USER") is None:
+        logging.info("No offcloud user to login")
+        return
+
+    import requests
+    from utils.network import encode_mediaflow_proxy_url
+
+    session = requests.Session()
+    if (
+            user_data.mediaflow_config
+            and user_data.mediaflow_config.proxy_debrid_streams
+    ):
+        url = encode_mediaflow_proxy_url(
+            user_data.mediaflow_config.proxy_url,
+            "/proxy/endpoint",
+            "https://offcloud.com/api/login",
+            query_params={"api_password": user_data.mediaflow_config.api_password, "verify_ssl": "false"},
+        )
+    else:
+        url = "https://offcloud.com/api/login"
+
+    logging.info(f"Logging into to {url}")
+    session.post(url,
+                 data={'username': os.environ.get("OFFCLOUD_USER"),
+                       'password': os.environ.get("OFFCLOUD_PASSWORD")})

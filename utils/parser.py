@@ -301,11 +301,13 @@ async def parse_stream_data(
 
     stream_list = []
     for stream_data in streams:
-        episode_variants = (
-            stream_data.get_episodes(season, episode) if is_series else [None]
-        )
+        episode_variants = [None] #(
+            #stream_data.get_episodes(season, episode) if is_series else [None]
+        #)
+        '''
         if is_series and not episode_variants:
             continue
+        '''
 
         for episode_data in episode_variants:
             if episode_data:
@@ -403,7 +405,7 @@ async def parse_stream_data(
 
             if has_streaming_provider:
                 stream_details["url"] = base_proxy_url_template.format(stream_data.id)
-                if episode_data:
+                if season or episode:
                     stream_details["url"] += f"/{season}/{episode}"
                 if file_name:
                     stream_details["url"] += f"/{quote(file_name)}"
@@ -412,9 +414,9 @@ async def parse_stream_data(
                 stream_details["infoHash"] = stream_data.id
                 stream_details["fileIdx"] = file_index
                 stream_details["sources"] = [
-                    f"tracker:{tracker}"
-                    for tracker in (stream_data.announce_list or TRACKERS)
-                ] + [f"dht:{stream_data.id}"]
+                                                f"tracker:{tracker}"
+                                                for tracker in (stream_data.announce_list or TRACKERS)
+                                            ] + [f"dht:{stream_data.id}"]
 
             stream_list.append(Stream(**stream_details))
 

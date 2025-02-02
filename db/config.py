@@ -6,8 +6,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Core Application Settings
-    addon_name: str = "MediaFusion"
-    version: str = "1.0.0"
+    addon_name: str = "Hosted MediaFusion"
+    version: str = "4.1.0"
     description: str = (
         "Universal Stremio Add-on for Movies, Series, Live TV & Sports Events. Source: https://github.com/mhdzumair/MediaFusion"
     )
@@ -61,32 +61,32 @@ class Settings(BaseSettings):
     is_scrap_from_prowlarr: bool = True
     prowlarr_url: str = "http://prowlarr-service:9696"
     prowlarr_api_key: str | None = None
-    prowlarr_live_title_search: bool = True
-    prowlarr_background_title_search: bool = True
-    prowlarr_search_query_timeout: int = 30
-    prowlarr_search_interval_hour: int = 72
-    prowlarr_immediate_max_process: int = 10
-    prowlarr_immediate_max_process_time: int = 15
+    prowlarr_live_title_search: bool = False
+    prowlarr_background_title_search: bool = False
+    prowlarr_search_query_timeout: int = 240
+    prowlarr_search_interval_hour: int = 6
+    prowlarr_immediate_max_process: int = 0
+    prowlarr_immediate_max_process_time: int = 240
     prowlarr_feed_scrape_interval_hour: int = 3
 
     # Torrentio Settings
-    is_scrap_from_torrentio: bool = False
-    torrentio_search_interval_days: int = 3
+    is_scrap_from_torrentio: bool = True
+    torrentio_search_interval_days: int = 6
     torrentio_url: str = "https://torrentio.strem.fun"
 
     # Mediafusion Settings
     is_scrap_from_mediafusion: bool = False
-    mediafusion_search_interval_days: int = 3
+    mediafusion_search_interval_days: int = 6
     mediafusion_url: str = "https://mediafusion.elfhosted.com"
     sync_debrid_cache_streams: bool = False
 
     # Zilean Settings
-    is_scrap_from_zilean: bool = False
-    zilean_search_interval_hour: int = 24
+    is_scrap_from_zilean: bool = True
+    zilean_search_interval_hour: int = 6
     zilean_url: str = "https://zilean.elfhosted.com"
 
     # BT4G Settings
-    is_scrap_from_bt4g: bool = True
+    is_scrap_from_bt4g: bool = False
     bt4g_url: str = "https://bt4gprx.com"
     bt4g_search_interval_hour: int = 72
     bt4g_search_timeout: int = 10
@@ -122,13 +122,13 @@ class Settings(BaseSettings):
     )
     local_config_path: str = "resources/json/scraper_config.json"
 
-    # Feature Toggles
+    # Feature toggles
     enable_rate_limit: bool = False
     validate_m3u8_urls_liveness: bool = True
     store_stremthru_magnet_cache: bool = False
-    is_scrap_from_yts: bool = True
-    scrape_with_aka_titles: bool = True
-    enable_fetching_torrent_metadata_from_p2p: bool = True
+    is_scrap_from_yts: bool = False
+    scrape_with_aka_titles: bool = False
+    enable_fetching_torrent_metadata_from_p2p: bool = False
 
     # Content Filtering
     adult_content_regex_keywords: str = (
@@ -143,7 +143,7 @@ class Settings(BaseSettings):
     worker_max_tasks_per_child: int = 20
 
     # Global Scheduler Settings
-    disable_all_scheduler: bool = False
+    disable_all_scheduler: bool = True
 
     # Individual Scheduler Settings
     tamilmv_scheduler_crontab: str = "0 */3 * * *"

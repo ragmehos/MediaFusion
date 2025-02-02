@@ -28,6 +28,41 @@ from utils.validation_helper import is_video_file
 # remove logging from demagnetize
 logging.getLogger("demagnetize").setLevel(logging.CRITICAL)
 
+TRACKERS = [
+    "http://tracker3.itzmx.com:8080/announce",
+    "udp://9.rarbg.me:2710/announce",
+    "udp://9.rarbg.to:2710/announce",
+    "udp://exodus.desync.com:6969/announce",
+    "udp://ipv4.tracker.harry.lu:80/announce",
+    "udp://tracker.coppersurfer.tk:6969/announce",
+    "udp://tracker.internetwarriors.net:1337/announce",
+    "udp://tracker.leechers-paradise.org:6969/announce",
+    "udp://tracker.openbittorrent.com:80/announce",
+    "udp://tracker.opentrackr.org:1337/announce",
+    "udp://tracker.pomf.se:80/announce",
+    "udp://tracker.tiny-vps.com:6969/announce",
+    "udp://tracker2.dler.com:80/announce",
+    "udp://tracker.breizh.pm:6969/announce",
+    "udp://tracker.opentrackr.org:1337/announce",
+    "udp://www.torrent.eu.org:451/announce",
+    "udp://open.stealth.si:80/announce",
+    "udp://tracker.bitsearch.to:1337/announce",
+    "udp://p4p.arenabg.com:1337/announce",
+    "udp://tracker.dler.org:6969/announce",
+    "udp://opentracker.i2p.rocks:6969/announce",
+    "udp://tracker.openbittorrent.com:6969/announce",
+    "http://mgtracker.org:2710/announce",
+    "http://mgtracker.org:6969/announce",
+    "http://open.acgtracker.com:1096/announce",
+    "http://open.lolicon.eu:7777/announce",
+    "http://open.touki.ru/announce.php",
+    "http://p4p.arenabg.ch:1337/announce",
+    "http://pow7.com:80/announce",
+    "http://retracker.gorcomnet.ru/announce",
+    "http://retracker.krs-ix.ru/announce",
+    "http://retracker.krs-ix.ru:80/announce",
+]
+
 
 def extract_torrent_metadata(
     content: bytes, parsed_data: dict = None, is_raise_error: bool = False
@@ -207,6 +242,7 @@ async def _acollect_pipe(
 async def info_hashes_to_torrent_metadata(
     info_hashes: list[str], trackers: list[str]
 ) -> list[dict]:
+    return []
     torrents_data = []
 
     if not settings.enable_fetching_torrent_metadata_from_p2p:

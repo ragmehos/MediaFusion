@@ -4,6 +4,7 @@ from typing import Optional, List
 
 import aiohttp
 
+from urllib.request import urlopen
 
 from db.models import TorrentStreams
 from streaming_providers.debrid_client import DebridClient
@@ -158,7 +159,6 @@ class OffCloud(DebridClient):
 
         links = await self.explore_folder_links(request_id)
         files_data = [{"name": path.basename(link), "link": link} for link in links]
-
         file_index = await select_file_index_from_torrent(
             {"files": files_data},
             filename=filename,
@@ -167,6 +167,7 @@ class OffCloud(DebridClient):
             file_size_callback=self.update_file_sizes,
         )
 
+        '''
         if filename is None:
             if "size" not in files_data[0]:
                 await self.update_file_sizes(files_data)
@@ -178,6 +179,7 @@ class OffCloud(DebridClient):
                 season=season,
                 is_index_trustable=False,
             )
+        '''
         selected_file_url = links[file_index]
         return selected_file_url
 

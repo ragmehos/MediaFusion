@@ -57,6 +57,7 @@ async def get_video_url_from_premiumize(
     user_ip: str,
     stream: TorrentStreams,
     filename: Optional[str],
+    season: Optional[int],
     episode: Optional[int],
     max_retries=5,
     retry_interval=5,
@@ -91,7 +92,7 @@ async def get_video_url_from_premiumize(
                 if "video" in file_data.get("mime_type", "")
             ]
         }
-        return await get_stream_link(torrent_info, filename, episode)
+        return await get_stream_link(torrent_info, filename, season, episode)
 
 
 async def fetch_downloaded_folder_data(
@@ -110,12 +111,14 @@ async def fetch_downloaded_folder_data(
 async def get_stream_link(
     torrent_info: dict[str, Any],
     filename: Optional[str],
+    season: Optional[int] = None,
     episode: Optional[int] = None,
 ) -> str:
     """Get the stream link from the torrent info."""
     selected_file_index = await select_file_index_from_torrent(
         torrent_info,
         filename,
+        season,
         episode,
     )
     selected_file = torrent_info["files"][selected_file_index]
